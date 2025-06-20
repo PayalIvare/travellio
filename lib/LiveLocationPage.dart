@@ -154,30 +154,33 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
           ),
           MarkerLayer(
             markers: [
-              Marker(
-                point: start!,
-                width: 30,
-                height: 30,
-                child: Icon(Icons.flag, color: Colors.green),
-              ),
-              Marker(
-                point: end!,
-                width: 30,
-                height: 30,
-                child: Icon(Icons.flag, color: Colors.red),
-              ),
+              if (start != null)
+                Marker(
+                  point: start!,
+                  width: 30,
+                  height: 30,
+                  child: Icon(Icons.flag, color: Colors.green),
+                ),
+              if (end != null)
+                Marker(
+                  point: end!,
+                  width: 30,
+                  height: 30,
+                  child: Icon(Icons.flag, color: Colors.red),
+                ),
               ...stopPoints.map((s) => Marker(
                     point: s,
                     width: 20,
                     height: 20,
                     child: Icon(Icons.location_on, size: 20, color: Colors.yellow),
                   )),
-              Marker(
-                point: busPosition!,
-                width: 40,
-                height: 40,
-                child: Icon(Icons.directions_bus, color: Colors.orange, size: 30),
-              ),
+              if (busPosition != null)
+                Marker(
+                  point: busPosition!,
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.directions_bus, color: Colors.orange, size: 30),
+                ),
             ],
           ),
           if (roadPath.isNotEmpty)
