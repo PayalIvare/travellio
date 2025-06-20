@@ -29,11 +29,11 @@ android {
 
     buildTypes {
         getByName("release") {
-            // ✅ Correct: Kotlin DSL syntax for minify & shrink resources
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // ✅ Disable obfuscation for now — prevent black screen
+            isMinifyEnabled = false
+            isShrinkResources = false
 
-            // ✅ Safe for testing only, use real signing for production
+            // ✅ Use debug signing for local testing only
             signingConfig = signingConfigs.getByName("debug")
 
             proguardFiles(

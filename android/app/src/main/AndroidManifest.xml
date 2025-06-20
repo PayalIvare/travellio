@@ -1,26 +1,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.login_types_app">
 
-    <!-- ✅ Required to access the Internet -->
+    <!-- ✅ Internet permission -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    
-<manifest>
-  <application>
-    <meta-data
-      android:name="com.google.android.geo.API_KEY"
-      android:value="AIzaSyB3ZstK0XOXbOv9MrgHsl05sq-I9D4XnFk"/>
-  </application>
-</manifest>
+
+    <!-- ✅ Queries for text processing -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
 
     <application
         android:label="login_types_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Your Google Maps API key -->
-    <meta-data
-  android:name="com.google.android.geo.API_KEY"
-  android:value="AIzaSyB3ZstK0XOXbOv9MrgHsl05sq-I9D4XnFk"/>
+        <!-- ✅ Google Maps API key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyB3ZstK0XOXbOv9MrgHsl05sq-I9D4XnFk"/>
 
         <activity
             android:name=".MainActivity"
@@ -32,7 +32,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Flutter splash theme while loading -->
+            <!-- ✅ Flutter splash theme -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
@@ -41,19 +41,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
         </activity>
 
-        <!-- Flutter embedding version -->
+        <!-- ✅ Flutter embedding version -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+
     </application>
 
-    <!-- Required for text processing -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
 </manifest>
