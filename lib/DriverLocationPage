@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -30,31 +31,14 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
   StreamSubscription<Position>? positionStream;
   bool rideStarted = false;
-  DateTime? lastUpdateTime; // 👈 Track last write time
+  DateTime? lastUpdateTime;
 
-  final String orsApiKey = '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9';
-
-  BitmapDescriptor? startIcon;
-  BitmapDescriptor? endIcon;
-  BitmapDescriptor? stopIcon;
-  BitmapDescriptor? busIcon;
+  final String orsApiKey = 'YOUR_ORS_API_KEY';
 
   @override
   void initState() {
     super.initState();
-    loadCustomIcons();
     fetchAssignedSchools();
-  }
-
-  Future<void> loadCustomIcons() async {
-    startIcon = await BitmapDescriptor.fromAssetImage(
-        ImageConfiguration(size: Size(18, 18)), 'assets/icons/start.png');
-    endIcon = await BitmapDescriptor.fromAssetImage(
-        ImageConfiguration(size: Size(18, 18)), 'assets/icons/end.png');
-    stopIcon = await BitmapDescriptor.fromAssetImage(
-        ImageConfiguration(size: Size(20, 20)), 'assets/icons/stop.png');
-    busIcon = await BitmapDescriptor.fromAssetImage(
-        ImageConfiguration(size: Size(18, 18)), 'assets/icons/bus.png');
   }
 
   Future<void> fetchAssignedSchools() async {
@@ -95,7 +79,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
     final response = await http.post(
       url,
       headers: {
-        'Authorization': orsApiKey,
+        'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
         'Content-Type': 'application/json',
       },
       body: jsonEncode({'coordinates': coordinates}),
@@ -270,49 +254,58 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
             SizedBox(height: 20),
             if (rideStarted && fullRoute != null)
               Expanded(
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: busPosition ?? start ?? LatLng(18.5204, 73.8567),
+                child: FlutterMap(
+                  options: MapOptions(
+                    center: busPosition ?? start ?? LatLng(18.5204, 73.8567),
                     zoom: 15,
                   ),
-                  markers: {
-                    if (start != null)
-                      Marker(
-                        markerId: MarkerId('start'),
-                        position: start!,
-                        icon: startIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                      ),
-                    if (end != null)
-                      Marker(
-                        markerId: MarkerId('end'),
-                        position: end!,
-                        icon: endIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                      ),
-                    if (busPosition != null)
-                      Marker(
-                        markerId: MarkerId('bus'),
-                        position: busPosition!,
-                        icon: busIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-                      ),
-                    ...stopPoints.map((stop) => Marker(
-                          markerId: MarkerId(stop['name']),
-                          position: stop['point'],
-                          infoWindow: InfoWindow(title: stop['name']),
-                          icon: stopIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
-                        )),
-                  },
-                  polylines: {
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        if (start != null)
+                          Marker(
+                            point: start!,
+                            width: 30,
+                            height: 30,
+                            child: Icon(Icons.flag, color: Colors.green),
+                          ),
+                        if (end != null)
+                          Marker(
+                            point: end!,
+                            width: 30,
+                            height: 30,
+                            child: Icon(Icons.flag, color: Colors.red),
+                          ),
+                        if (busPosition != null)
+                          Marker(
+                            point: busPosition!,
+                            width: 40,
+                            height: 40,
+                            child: Icon(Icons.directions_bus, color: Colors.orange),
+                          ),
+                        ...stopPoints.map((stop) => Marker(
+                              point: stop['point'],
+                              width: 20,
+                              height: 20,
+                              child: Icon(Icons.location_on, color: Colors.yellow),
+                            )),
+                      ],
+                    ),
                     if (roadPath.isNotEmpty)
-                      Polyline(
-                        polylineId: PolylineId('route'),
-                        color: Colors.blueAccent,
-                        width: 4,
-                        points: roadPath,
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: roadPath,
+                            color: Colors.blueAccent,
+                            strokeWidth: 4,
+                          ),
+                        ],
                       ),
-                  },
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  onMapCreated: (GoogleMapController controller) {},
+                  ],
                 ),
               ),
           ],
