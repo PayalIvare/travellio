@@ -33,7 +33,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   bool rideStarted = false;
   DateTime? lastUpdateTime;
 
-  final String orsApiKey = 'YOUR_ORS_API_KEY';
+  final String orsApiKey = 'YOUR_ORS_API_KEY'; // <-- Replace with your key!
 
   @override
   void initState() {
@@ -44,10 +44,12 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   Future<void> fetchAssignedSchools() async {
     User? user = _auth.currentUser;
     if (user == null) return;
+
     var snapshot = await _firestore
         .collection('assignedDrivers')
         .where('email', isEqualTo: user.email)
         .get();
+
     if (snapshot.docs.isNotEmpty) {
       var doc = snapshot.docs.first.data();
       setState(() {
@@ -58,28 +60,33 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
   void prepareRouteSummaries() {
     if (selectedSchool == null) {
-      routeSummaries = [];
+      setState(() {
+        routeSummaries = [];
+      });
       return;
     }
     var foundRoutes = schools
         .firstWhere((s) => s['name'] == selectedSchool)['routes'] ?? [];
-    routeSummaries = foundRoutes.where((r) => r is Map).map<Map<String, dynamic>>((r) {
-      return {
-        'name': r['name'] ?? 'Route',
-        'start': r['start']?['name'] ?? '',
-        'end': r['end']?['name'] ?? '',
-        'full': r,
-      };
-    }).toList();
+    setState(() {
+      routeSummaries = foundRoutes.where((r) => r is Map).map<Map<String, dynamic>>((r) {
+        return {
+          'name': r['name'] ?? 'Route',
+          'start': r['start']?['name'] ?? '',
+          'end': r['end']?['name'] ?? '',
+          'full': r,
+        };
+      }).toList();
+    });
   }
 
   Future<void> fetchRouteFromORS(List<LatLng> points) async {
     final coordinates = points.map((p) => [p.longitude, p.latitude]).toList();
     final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
+
     final response = await http.post(
       url,
       headers: {
-        'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
+        'Authorization': orsApiKey,
         'Content-Type': 'application/json',
       },
       body: jsonEncode({'coordinates': coordinates}),
@@ -91,18 +98,22 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       setState(() {
         roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
       });
+    } else {
+      print('ORS API error: ${response.body}');
     }
   }
 
   Future<void> startTracking() async {
     if (selectedRouteSummary == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select a school and route first!')));
+        SnackBar(content: Text('Please select a school and route first!')),
+      );
       return;
     }
 
     fullRoute = selectedRouteSummary!['full'];
 
+    // Extract start & end
     if (fullRoute!['start'] != null) {
       var startGeo = fullRoute!['start']['location'];
       if (startGeo is GeoPoint) {
@@ -117,6 +128,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       }
     }
 
+    // Extract stops
     stopPoints.clear();
     if (fullRoute!['stops'] != null) {
       for (var stop in fullRoute!['stops']) {
@@ -130,6 +142,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       }
     }
 
+    // Prepare path
     List<LatLng> routePoints = [
       if (start != null) start!,
       ...stopPoints.map((s) => s['point'] as LatLng),
@@ -137,6 +150,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
     ];
     await fetchRouteFromORS(routePoints);
 
+    // Get initial position
     Position pos = await Geolocator.getCurrentPosition();
     setState(() {
       busPosition = LatLng(pos.latitude, pos.longitude);
@@ -216,6 +230,8 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
                   start = null;
                   end = null;
                   stopPoints.clear();
+                  roadPath.clear();
+                  busPosition = null;
                 });
                 prepareRouteSummaries();
               },
@@ -236,6 +252,11 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
                   setState(() {
                     selectedRouteSummary = val;
                     fullRoute = null;
+                    start = null;
+                    end = null;
+                    stopPoints.clear();
+                    roadPath.clear();
+                    busPosition = null;
                   });
                 },
               ),
@@ -287,12 +308,14 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
                             height: 40,
                             child: Icon(Icons.directions_bus, color: Colors.orange),
                           ),
-                        ...stopPoints.map((stop) => Marker(
-                              point: stop['point'],
-                              width: 20,
-                              height: 20,
-                              child: Icon(Icons.location_on, color: Colors.yellow),
-                            )),
+                        ...stopPoints
+                            .where((stop) => stop['point'] != null)
+                            .map((stop) => Marker(
+                                  point: stop['point'],
+                                  width: 20,
+                                  height: 20,
+                                  child: Icon(Icons.location_on, color: Colors.yellow),
+                                )),
                       ],
                     ),
                     if (roadPath.isNotEmpty)
