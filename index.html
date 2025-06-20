@@ -1,15 +1,9 @@
 <!DOCTYPE html>
 <html>
+<!DOCTYPE html>
+<html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-  -->
-  <base href="/travellio/">
+  <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -27,12 +21,19 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>login_types_app</title>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3ZstK0XOXbOv9MrgHsl05sq-I9D4XnFk"></script>
+
+  <!-- ✅ FIXED: async + defer -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3ZstK0XOXbOv9MrgHsl05sq-I9D4XnFk" async defer></script>
 
   <link rel="manifest" href="manifest.json">
-
-  
 </head>
+
+<body>
+  <!-- ✅ Correct: only ONE script here -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
+
 <body>
   <!-- ✅ Correct: only ONE script here -->
   <script src="flutter_bootstrap.js" async></script>
