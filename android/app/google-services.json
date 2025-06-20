@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1031456677182",
+    "project_id": "travellio-74f79",
+    "storage_bucket": "travellio-74f79.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1031456677182:android:c9fdbc40b17d39a72f206f",
+        "android_client_info": {
+          "package_name": "com.example.login_types_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNILWioVVTS3N65tMetjANzIKIl81Bgrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

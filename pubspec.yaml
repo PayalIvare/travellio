@@ -1,0 +1,57 @@
+name: login_types_app
+description: A basic Flutter project with login and 3 user types.
+publish_to: "none" # since this is not a published package
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.1.0 <4.0.0"
+
+  
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.0.15
+  table_calendar: ^3.0.0
+  firebase_core: ^2.30.0
+  firebase_auth: ^4.17.4
+  cloud_firestore: ^4.15.5
+  geocoding: ^2.1.0
+  flutter_typeahead: ^4.0.0
+  http: ^1.1.0
+  google_maps_flutter: ^2.5.0
+  location: ^5.0.0
+  google_maps_flutter_web: ^0.5.4+2
+
+    # Geolocator for live GPS
+  geolocator: ^11.0.0
+
+  # LatLong2 for map coordinates2
+  latlong2: ^0.9.0
+
+  # ✅ Use flutter_map instead of Google Maps
+  flutter_map: ^6.2.1
+  flutter_keyboard_visibility: 5.3.0  
+
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/bus_logo.png
+    - assets/bus_image.jpg
+    - assets/icons/start.png
+    - assets/icons/end.png
+    - assets/icons/stop.png
+    - assets/icons/bus.png
+
+

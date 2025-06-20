@@ -1,0 +1,323 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class DriverLocationPage extends StatefulWidget {
+  @override
+  _DriverLocationPageState createState() => _DriverLocationPageState();
+}
+
+class _DriverLocationPageState extends State<DriverLocationPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  List<Map<String, dynamic>> schools = [];
+  String? selectedSchool;
+  List<Map<String, dynamic>> routeSummaries = [];
+  Map<String, dynamic>? selectedRouteSummary;
+  Map<String, dynamic>? fullRoute;
+
+  LatLng? busPosition;
+  LatLng? start;
+  LatLng? end;
+  List<Map<String, dynamic>> stopPoints = [];
+  List<LatLng> roadPath = [];
+
+  StreamSubscription<Position>? positionStream;
+  bool rideStarted = false;
+  DateTime? lastUpdateTime; // 👈 Track last write time
+
+  final String orsApiKey = '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9';
+
+  BitmapDescriptor? startIcon;
+  BitmapDescriptor? endIcon;
+  BitmapDescriptor? stopIcon;
+  BitmapDescriptor? busIcon;
+
+  @override
+  void initState() {
+    super.initState();
+    loadCustomIcons();
+    fetchAssignedSchools();
+  }
+
+  Future<void> loadCustomIcons() async {
+    startIcon = await BitmapDescriptor.fromAssetImage(
+        ImageConfiguration(size: Size(18, 18)), 'assets/icons/start.png');
+    endIcon = await BitmapDescriptor.fromAssetImage(
+        ImageConfiguration(size: Size(18, 18)), 'assets/icons/end.png');
+    stopIcon = await BitmapDescriptor.fromAssetImage(
+        ImageConfiguration(size: Size(20, 20)), 'assets/icons/stop.png');
+    busIcon = await BitmapDescriptor.fromAssetImage(
+        ImageConfiguration(size: Size(18, 18)), 'assets/icons/bus.png');
+  }
+
+  Future<void> fetchAssignedSchools() async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+    var snapshot = await _firestore
+        .collection('assignedDrivers')
+        .where('email', isEqualTo: user.email)
+        .get();
+    if (snapshot.docs.isNotEmpty) {
+      var doc = snapshot.docs.first.data();
+      setState(() {
+        schools = List<Map<String, dynamic>>.from(doc['schools'] ?? []);
+      });
+    }
+  }
+
+  void prepareRouteSummaries() {
+    if (selectedSchool == null) {
+      routeSummaries = [];
+      return;
+    }
+    var foundRoutes = schools
+        .firstWhere((s) => s['name'] == selectedSchool)['routes'] ?? [];
+    routeSummaries = foundRoutes.where((r) => r is Map).map<Map<String, dynamic>>((r) {
+      return {
+        'name': r['name'] ?? 'Route',
+        'start': r['start']?['name'] ?? '',
+        'end': r['end']?['name'] ?? '',
+        'full': r,
+      };
+    }).toList();
+  }
+
+  Future<void> fetchRouteFromORS(List<LatLng> points) async {
+    final coordinates = points.map((p) => [p.longitude, p.latitude]).toList();
+    final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': orsApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'coordinates': coordinates}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final coords = data['features'][0]['geometry']['coordinates'];
+      setState(() {
+        roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
+      });
+    }
+  }
+
+  Future<void> startTracking() async {
+    if (selectedRouteSummary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select a school and route first!')));
+      return;
+    }
+
+    fullRoute = selectedRouteSummary!['full'];
+
+    if (fullRoute!['start'] != null) {
+      var startGeo = fullRoute!['start']['location'];
+      if (startGeo is GeoPoint) {
+        start = LatLng(startGeo.latitude, startGeo.longitude);
+      }
+    }
+
+    if (fullRoute!['end'] != null) {
+      var endGeo = fullRoute!['end']['location'];
+      if (endGeo is GeoPoint) {
+        end = LatLng(endGeo.latitude, endGeo.longitude);
+      }
+    }
+
+    stopPoints.clear();
+    if (fullRoute!['stops'] != null) {
+      for (var stop in fullRoute!['stops']) {
+        var loc = stop['location'];
+        if (loc is GeoPoint) {
+          stopPoints.add({
+            'point': LatLng(loc.latitude, loc.longitude),
+            'name': stop['name'] ?? '',
+          });
+        }
+      }
+    }
+
+    List<LatLng> routePoints = [
+      if (start != null) start!,
+      ...stopPoints.map((s) => s['point'] as LatLng),
+      if (end != null) end!,
+    ];
+    await fetchRouteFromORS(routePoints);
+
+    Position pos = await Geolocator.getCurrentPosition();
+    setState(() {
+      busPosition = LatLng(pos.latitude, pos.longitude);
+    });
+
+    lastUpdateTime = DateTime.now();
+    positionStream = Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen((Position position) {
+      setState(() {
+        busPosition = LatLng(position.latitude, position.longitude);
+      });
+
+      final now = DateTime.now();
+      if (lastUpdateTime == null || now.difference(lastUpdateTime!).inSeconds >= 5) {
+        lastUpdateTime = now;
+        _firestore.collection('liveLocations').doc(_auth.currentUser!.uid).set({
+          'lat': position.latitude,
+          'lng': position.longitude,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+    });
+
+    setState(() {
+      rideStarted = true;
+    });
+  }
+
+  void stopTracking() {
+    positionStream?.cancel();
+    setState(() {
+      busPosition = null;
+      rideStarted = false;
+      start = null;
+      end = null;
+      stopPoints.clear();
+      fullRoute = null;
+      roadPath.clear();
+    });
+  }
+
+  @override
+  void dispose() {
+    positionStream?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Driver Location'),
+        backgroundColor: Color(0xFF77DDE7),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            DropdownButton<String>(
+              value: selectedSchool,
+              hint: Text('Select School'),
+              items: schools.map((school) {
+                return DropdownMenuItem<String>(
+                  value: school['name'],
+                  child: Text(school['name']),
+                );
+              }).toList(),
+              onChanged: (val) {
+                setState(() {
+                  selectedSchool = val;
+                  selectedRouteSummary = null;
+                  fullRoute = null;
+                  start = null;
+                  end = null;
+                  stopPoints.clear();
+                });
+                prepareRouteSummaries();
+              },
+            ),
+            if (selectedSchool != null)
+              DropdownButton<Map<String, dynamic>>(
+                value: routeSummaries.contains(selectedRouteSummary)
+                    ? selectedRouteSummary
+                    : null,
+                hint: Text('Select Route'),
+                items: routeSummaries.map<DropdownMenuItem<Map<String, dynamic>>>((summary) {
+                  return DropdownMenuItem(
+                    value: summary,
+                    child: Text('${summary['start']} → ${summary['end']}'),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    selectedRouteSummary = val;
+                    fullRoute = null;
+                  });
+                },
+              ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: startTracking,
+              child: Text("Start Ride"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: stopTracking,
+              child: Text("Stop Ride"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            ),
+            SizedBox(height: 20),
+            if (rideStarted && fullRoute != null)
+              Expanded(
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: busPosition ?? start ?? LatLng(18.5204, 73.8567),
+                    zoom: 15,
+                  ),
+                  markers: {
+                    if (start != null)
+                      Marker(
+                        markerId: MarkerId('start'),
+                        position: start!,
+                        icon: startIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                      ),
+                    if (end != null)
+                      Marker(
+                        markerId: MarkerId('end'),
+                        position: end!,
+                        icon: endIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                      ),
+                    if (busPosition != null)
+                      Marker(
+                        markerId: MarkerId('bus'),
+                        position: busPosition!,
+                        icon: busIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                      ),
+                    ...stopPoints.map((stop) => Marker(
+                          markerId: MarkerId(stop['name']),
+                          position: stop['point'],
+                          infoWindow: InfoWindow(title: stop['name']),
+                          icon: stopIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+                        )),
+                  },
+                  polylines: {
+                    if (roadPath.isNotEmpty)
+                      Polyline(
+                        polylineId: PolylineId('route'),
+                        color: Colors.blueAccent,
+                        width: 4,
+                        points: roadPath,
+                      ),
+                  },
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  onMapCreated: (GoogleMapController controller) {},
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
