@@ -4,9 +4,20 @@ import 'add_school_page.dart';
 import 'add_vehicle.dart';
 import 'view_travellers_page.dart';
 
-class OperatorDashboard extends StatelessWidget {
+class OperatorDashboard extends StatefulWidget {
+  const OperatorDashboard({Key? key}) : super(key: key);
+
+  @override
+  State<OperatorDashboard> createState() => _OperatorDashboardState();
+}
+
+class _OperatorDashboardState extends State<OperatorDashboard> {
   final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
+
+  // ✅ Shared in-memory lists
+  final List<Map<String, String>> vehicleList = [];
+  final List<Map<String, dynamic>> travellerList = [];
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +56,11 @@ class OperatorDashboard extends StatelessWidget {
                     color: turquoise,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => ViewTravellersPage()),
+                      MaterialPageRoute(
+                        builder: (_) => ViewTravellersPage(
+                          travellers: travellerList,
+                        ),
+                      ),
                     ),
                   ),
                   buildDashboardButton(
@@ -63,11 +78,17 @@ class OperatorDashboard extends StatelessWidget {
                     icon: Icons.directions_bus,
                     label: 'Add Vehicle',
                     color: turquoise,
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => AddVehiclePage()),
+                        MaterialPageRoute(
+                          builder: (_) => AddVehiclePage(
+                            initialVehicles: vehicleList,
+                          ),
+                        ),
                       );
+                      // Refresh state in case vehicleList changed:
+                      setState(() {});
                     },
                   ),
                 ],

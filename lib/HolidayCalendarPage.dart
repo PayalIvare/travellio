@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class HolidayCalendarPage extends StatefulWidget {
-  const HolidayCalendarPage({Key? key}) : super(key: key); // ✅ const constructor
+  const HolidayCalendarPage({Key? key}) : super(key: key);
 
   @override
   State<HolidayCalendarPage> createState() => _HolidayCalendarPageState();
@@ -20,27 +18,8 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
   List<DateTime> _selectedHolidays = [];
   bool _selecting = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedHolidays();
-  }
-
-  Future<void> _loadSavedHolidays() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString('holidays');
-    if (saved == null || saved.isEmpty) return;
-    final savedList = json.decode(saved) as List<dynamic>;
-    setState(() {
-      _selectedHolidays = savedList.map((e) => DateTime.tryParse(e.toString()) ?? DateTime.now()).toList();
-    });
-  }
-
-  Future<void> _saveHolidays() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = _selectedHolidays.map((e) => e.toIso8601String()).toList();
-    await prefs.setString('holidays', json.encode(encoded));
-  }
+  /// ✅ No SharedPreferences → initialize in-memory list only
+  /// ✅ You can still pre-populate if needed (hardcoded or from server)
 
   void _toggleHolidaySelection(DateTime day) {
     setState(() {
@@ -113,16 +92,16 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () async {
+                onPressed: () {
                   setState(() {
                     _selecting = !_selecting;
                   });
                   if (!_selecting) {
-                    await _saveHolidays();
+                    // ✅ Now just show info — no save
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Saved ${_selectedHolidays.length} holidays!',
+                          'Selected ${_selectedHolidays.length} holidays!',
                         ),
                       ),
                     );

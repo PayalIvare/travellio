@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'SelectSchool.dart';
 import 'HolidayCalendarPage.dart';
 import 'LiveLocationPage.dart';
@@ -17,18 +16,40 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
   static const Color white = Colors.white;
 
   String travellerName = "Traveller";
+  List<dynamic> schoolData = [];
 
   @override
   void initState() {
     super.initState();
-    loadTravellerName();
+    _loadTravellerData();
   }
 
-  Future<void> loadTravellerName() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      travellerName = prefs.getString('travellerName') ?? "Traveller";
-    });
+  /// ✅ Load name and schools locally (or later from DB)
+  void _loadTravellerData() {
+    travellerName = "Traveller"; // Replace with logged-in user if needed
+
+    schoolData = [
+      {
+        "name": "ABC School",
+        "routes": [
+          {
+            "start": "Point A",
+            "end": "Point B",
+            "stops": ["Stop 1", "Stop 2", "Stop 3"]
+          }
+        ],
+      },
+      {
+        "name": "XYZ School",
+        "routes": [
+          {
+            "start": "X",
+            "end": "Y",
+            "stops": ["X1", "X2", "X3"]
+          }
+        ],
+      },
+    ];
   }
 
   @override
@@ -76,7 +97,7 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
               children: [
                 const Text('Hello,', style: TextStyle(color: white, fontSize: 24)),
                 Text(
-                  travellerName,
+                  travellerName.isNotEmpty ? travellerName : "Traveller",
                   style: const TextStyle(
                     color: white,
                     fontSize: 28,
@@ -92,7 +113,7 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
             ),
           ),
 
-          // ✅ Buttons Grid
+          // ✅ Dashboard buttons grid
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -104,13 +125,18 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
                   buildDashboardButton(
                     icon: Icons.school,
                     label: 'Select School',
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const SelectSchool(),
+                          builder: (_) => SelectSchool(
+                            initialSchoolData: schoolData,
+                          ),
                         ),
                       );
+                      if (result != null) {
+                        debugPrint('Selected school: $result');
+                      }
                     },
                   ),
                   buildDashboardButton(

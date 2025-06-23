@@ -1,59 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class DriverTravellersPage extends StatefulWidget {
-  const DriverTravellersPage({Key? key}) : super(key: key); // ✅ const constructor
+  final String driverEmail;
+  final List<Map<String, dynamic>> assignedSchools;
+  final List<Map<String, dynamic>> allTravellers;
+
+  const DriverTravellersPage({
+    Key? key,
+    required this.driverEmail,
+    required this.assignedSchools,
+    required this.allTravellers,
+  }) : super(key: key);
 
   @override
   State<DriverTravellersPage> createState() => _DriverTravellersPageState();
 }
 
 class _DriverTravellersPageState extends State<DriverTravellersPage> {
-  List<Map<String, dynamic>> assignedSchools = [];
   List<Map<String, dynamic>> filteredTravellers = [];
-  String? driverEmail;
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    filterTravellers();
   }
 
-  Future<void> loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final email = prefs.getString('loggedInEmail');
-    if (email == null || email.isEmpty) return;
-    driverEmail = email;
-
-    final assignedData = prefs.getString('assignedDrivers');
-    if (assignedData == null || assignedData.isEmpty) return;
-
-    final assignedList = jsonDecode(assignedData) as List<dynamic>;
-    for (final entry in assignedList) {
-      final entryEmail = entry['driver']?['email'] ?? entry['email'];
-      if (entryEmail == driverEmail && entry['schools'] != null) {
-        assignedSchools = List<Map<String, dynamic>>.from(entry['schools']);
-        break;
-      }
-    }
-
-    final travellersData = prefs.getString('registeredTravellers');
-    if (travellersData == null || travellersData.isEmpty) return;
-
-    final travellersList = jsonDecode(travellersData) as List<dynamic>;
-
-    final schoolNames = assignedSchools
+  void filterTravellers() {
+    final schoolNames = widget.assignedSchools
         .map((s) => (s['name'] ?? '').toString().toLowerCase().trim())
         .toList();
 
-    filteredTravellers = travellersList.where((t) {
+    filteredTravellers = widget.allTravellers.where((t) {
       final travellerSchool = (t['school'] ?? '').toString().toLowerCase().trim();
       return schoolNames.contains(travellerSchool);
-    }).map((t) => Map<String, dynamic>.from(t)).toList();
-
-    setState(() {});
+    }).toList();
   }
 
   void showTravellerDetails(Map<String, dynamic> traveller) {

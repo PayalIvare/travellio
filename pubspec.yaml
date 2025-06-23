@@ -1,4 +1,4 @@
-name: login_types_app
+name: travellio
 description: A basic Flutter project with login and 3 user types.
 publish_to: "none" # since this is not a published package
 

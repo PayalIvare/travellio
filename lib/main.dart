@@ -9,12 +9,10 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  }
-
+  // ✅ Always initialize Firebase — no if condition
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(MyApp());
 }
 
@@ -159,17 +157,17 @@ class TravellerPage extends StatelessWidget {
                 MarkerLayer(
                   markers: [
                     Marker(
-  width: 40,
-  height: 40,
-  point: busLocation,
-  child: Icon(Icons.directions_bus, color: Colors.red, size: 30),
-),
-...stops.map((s) => Marker(
-  width: 40,
-  height: 40,
-  point: LatLng(37.427, -122.085),
-  child: Icon(Icons.directions_bus, size: 30, color: Colors.red),
-)),
+                      width: 40,
+                      height: 40,
+                      point: busLocation,
+                      child: Icon(Icons.directions_bus, color: Colors.red, size: 30),
+                    ),
+                    ...stops.map((s) => Marker(
+                      width: 40,
+                      height: 40,
+                      point: s,
+                      child: Icon(Icons.location_on, size: 30, color: Colors.blue),
+                    )),
                   ],
                 ),
                 PolylineLayer(

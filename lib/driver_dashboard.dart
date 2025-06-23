@@ -1,17 +1,49 @@
 import 'package:flutter/material.dart';
-import 'driver_schools_page.dart'; 
+import 'driver_schools_page.dart';
 import 'DriverTravellersPage.dart';
 import 'DriverLocationPage.dart';
 
 class DriverDashboard extends StatelessWidget {
   final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
-  final Color white = Colors.white;
 
-  const DriverDashboard({Key? key}) : super(key: key); // Add const constructor
+  const DriverDashboard({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Example dummy data — replace this with your real data source
+    final String driverEmail = 'driver@example.com';
+    final List<Map<String, dynamic>> assignedSchools = [
+      {'name': 'ABC School'},
+      {'name': 'XYZ School'},
+    ];
+    final List<Map<String, dynamic>> allTravellers = [
+      {
+        'name': 'John Doe',
+        'email': 'john@example.com',
+        'school': 'ABC School',
+        'route': 'Route 1',
+        'pickup': 'Stop A',
+        'drop': 'Stop B',
+      },
+      {
+        'name': 'Jane Smith',
+        'email': 'jane@example.com',
+        'school': 'XYZ School',
+        'route': 'Route 2',
+        'pickup': 'Stop X',
+        'drop': 'Stop Y',
+      },
+      {
+        'name': 'Mark Lee',
+        'email': 'mark@example.com',
+        'school': 'LMN School',
+        'route': 'Route 3',
+        'pickup': 'Stop M',
+        'drop': 'Stop N',
+      },
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver Dashboard'),
@@ -36,7 +68,13 @@ class DriverDashboard extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) =>  DriverTravellersPage()),
+                        MaterialPageRoute(
+                          builder: (_) => DriverTravellersPage(
+                            driverEmail: driverEmail,
+                            assignedSchools: assignedSchools,
+                            allTravellers: allTravellers,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -49,7 +87,7 @@ class DriverDashboard extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>  DriverSchoolsPage(),
+                          builder: (_) => DriverSchoolsPage(),
                         ),
                       );
                     },
@@ -73,7 +111,9 @@ class DriverDashboard extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) =>  DriverLocationPage()),
+                        MaterialPageRoute(
+                          builder: (_) => DriverLocationPage(),
+                        ),
                       );
                     },
                   ),

@@ -1,45 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class ViewTravellersPage extends StatefulWidget {
+  final List<Map<String, dynamic>> travellers;
+
+  const ViewTravellersPage({Key? key, required this.travellers}) : super(key: key);
+
   @override
   _ViewTravellersPageState createState() => _ViewTravellersPageState();
 }
 
 class _ViewTravellersPageState extends State<ViewTravellersPage> {
-  List<Map<String, dynamic>> travellers = [];
+  late final List<Map<String, dynamic>> travellers;
 
   @override
   void initState() {
     super.initState();
-    loadTravellers();
+    travellers = widget.travellers;
   }
 
-  /// Load travellers from SharedPreferences (JSON list)
-  Future<void> loadTravellers() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? data = prefs.getString('registeredTravellers');
-    if (data != null && data.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(data);
-        if (decoded is List) {
-          setState(() {
-            travellers = List<Map<String, dynamic>>.from(decoded);
-          });
-        }
-      } catch (e) {
-        debugPrint('Error decoding travellers: $e');
-      }
-    }
-  }
-
-  /// Show detailed info of a single traveller
+  /// Show details of a traveller
   void showTravellerDetails(Map<String, dynamic> traveller) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(traveller['name'] ?? 'No Name'),
+        title: Text(traveller['name']?.toString().trim().isNotEmpty == true
+            ? traveller['name']
+            : 'No Name'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +61,7 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
               itemCount: travellers.length,
               itemBuilder: (context, index) {
                 final traveller = travellers[index];
-                final name = traveller['name']?.toString().trim().isEmpty == false
+                final name = traveller['name']?.toString().trim().isNotEmpty == true
                     ? traveller['name']
                     : 'Unnamed';
                 return Card(
