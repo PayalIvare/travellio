@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 class TravellerPage extends StatelessWidget {
+  const TravellerPage({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    double textSize = MediaQuery.of(context).size.width > 600 ? 24 : 16;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double textSize = screenWidth > 600 ? 24 : 16;
+
     return Scaffold(
-      appBar: AppBar(title: Text('Traveller Dashboard')),
+      appBar: AppBar(
+        title: const Text('Traveller Dashboard'),
+      ),
       body: Center(
         child: Text(
           'Welcome, Traveller!',

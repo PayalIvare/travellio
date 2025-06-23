@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'add_driver_page.dart';
 import 'add_school_page.dart';
 import 'add_vehicle.dart';
-import 'view_travellers_page.dart'; // ✅ Import View Travellers Page
+import 'view_travellers_page.dart';
 
 class OperatorDashboard extends StatelessWidget {
-  final Color turquoise = Color(0xFF77DDE7);
+  final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
-  final Color white = Colors.white;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +14,7 @@ class OperatorDashboard extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Operator Dashboard'),
+        title: const Text('Operator Dashboard'),
         backgroundColor: turquoise,
       ),
       backgroundColor: black,
@@ -78,16 +77,16 @@ class OperatorDashboard extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back),
-                label: Text('Back'),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: turquoise,
                   foregroundColor: black,
-                  padding: EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  textStyle: TextStyle(fontSize: 18),
+                  textStyle: const TextStyle(fontSize: 18),
                 ),
               ),
             ),
@@ -97,11 +96,13 @@ class OperatorDashboard extends StatelessWidget {
     );
   }
 
-  Widget buildDashboardButton(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required Color color,
-      required VoidCallback onTap}) {
+  Widget buildDashboardButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -114,7 +115,7 @@ class OperatorDashboard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 40, color: black),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Text(
                 label,
                 style: TextStyle(

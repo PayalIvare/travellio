@@ -16,16 +16,25 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
     loadTravellers();
   }
 
+  /// Load travellers from SharedPreferences (JSON list)
   Future<void> loadTravellers() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? data = prefs.getString('registeredTravellers');
-    if (data != null) {
-      setState(() {
-        travellers = List<Map<String, dynamic>>.from(jsonDecode(data));
-      });
+    if (data != null && data.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is List) {
+          setState(() {
+            travellers = List<Map<String, dynamic>>.from(decoded);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error decoding travellers: $e');
+      }
     }
   }
 
+  /// Show detailed info of a single traveller
   void showTravellerDetails(Map<String, dynamic> traveller) {
     showDialog(
       context: context,
@@ -35,17 +44,19 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Email: ${traveller['email'] ?? "Not provided"}'),
-            Text('Phone: ${traveller['phone'] ?? "Not provided"}'),
+            Text('Email: ${traveller['email'] ?? "N/A"}'),
+            Text('Phone: ${traveller['phone'] ?? "N/A"}'),
             Text('School: ${traveller['school'] ?? "N/A"}'),
-            Text('Bus Stop: ${traveller['busStop'] ?? "N/A"}'),
+            Text('Route: ${traveller['route'] ?? "N/A"}'),
             Text('Pickup: ${traveller['pickup'] ?? "N/A"}'),
             Text('Drop: ${traveller['drop'] ?? "N/A"}'),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: Text('Close')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -55,29 +66,34 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('View Travellers'),
-        backgroundColor: Color(0xFF77DDE7),
+        title: const Text('View Travellers'),
+        backgroundColor: const Color(0xFF77DDE7),
       ),
-      body: ListView.builder(
-        itemCount: travellers.length,
-        itemBuilder: (context, index) {
-          final traveller = travellers[index];
-          return Card(
-            margin: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-            child: ListTile(
-              title: Text(traveller['name'] ?? 'Unnamed'),
-              trailing: ElevatedButton(
-                onPressed: () => showTravellerDetails(traveller),
-                child: Text('Details'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                ),
-              ),
+      body: travellers.isEmpty
+          ? const Center(child: Text('No travellers found.'))
+          : ListView.builder(
+              itemCount: travellers.length,
+              itemBuilder: (context, index) {
+                final traveller = travellers[index];
+                final name = traveller['name']?.toString().trim().isEmpty == false
+                    ? traveller['name']
+                    : 'Unnamed';
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  child: ListTile(
+                    title: Text(name),
+                    trailing: ElevatedButton(
+                      onPressed: () => showTravellerDetails(traveller),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Details'),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

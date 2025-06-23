@@ -3,14 +3,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class DriverTravellersPage extends StatefulWidget {
+  const DriverTravellersPage({Key? key}) : super(key: key); // ✅ const constructor
+
   @override
-  _DriverTravellersPageState createState() => _DriverTravellersPageState();
+  State<DriverTravellersPage> createState() => _DriverTravellersPageState();
 }
 
 class _DriverTravellersPageState extends State<DriverTravellersPage> {
   List<Map<String, dynamic>> assignedSchools = [];
   List<Map<String, dynamic>> filteredTravellers = [];
-  String driverEmail = '';
+  String? driverEmail;
 
   @override
   void initState() {
@@ -19,17 +21,17 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
   }
 
   Future<void> loadData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
-    String? email = prefs.getString('loggedInEmail');
-    if (email == null) return;
+    final email = prefs.getString('loggedInEmail');
+    if (email == null || email.isEmpty) return;
     driverEmail = email;
 
-    String? assignedData = prefs.getString('assignedDrivers');
-    if (assignedData == null) return;
+    final assignedData = prefs.getString('assignedDrivers');
+    if (assignedData == null || assignedData.isEmpty) return;
 
-    List<dynamic> assignedList = jsonDecode(assignedData);
-    for (var entry in assignedList) {
+    final assignedList = jsonDecode(assignedData) as List<dynamic>;
+    for (final entry in assignedList) {
       final entryEmail = entry['driver']?['email'] ?? entry['email'];
       if (entryEmail == driverEmail && entry['schools'] != null) {
         assignedSchools = List<Map<String, dynamic>>.from(entry['schools']);
@@ -37,18 +39,17 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
       }
     }
 
-    String? travellersData = prefs.getString('registeredTravellers');
-    if (travellersData == null) return;
+    final travellersData = prefs.getString('registeredTravellers');
+    if (travellersData == null || travellersData.isEmpty) return;
 
-    List<dynamic> travellersList = jsonDecode(travellersData);
+    final travellersList = jsonDecode(travellersData) as List<dynamic>;
 
-    List<String> schoolNames = assignedSchools
-        .map((school) => (school['name'] ?? '').toString().toLowerCase().trim())
+    final schoolNames = assignedSchools
+        .map((s) => (s['name'] ?? '').toString().toLowerCase().trim())
         .toList();
 
-    filteredTravellers = travellersList.where((traveller) {
-      String travellerSchool =
-          (traveller['school'] ?? '').toString().toLowerCase().trim();
+    filteredTravellers = travellersList.where((t) {
+      final travellerSchool = (t['school'] ?? '').toString().toLowerCase().trim();
       return schoolNames.contains(travellerSchool);
     }).map((t) => Map<String, dynamic>.from(t)).toList();
 
@@ -60,7 +61,7 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Traveller Details'),
+          title: const Text('Traveller Details'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +77,7 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
+              child: const Text('Close'),
             ),
           ],
         );
@@ -88,12 +89,12 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("View Travellers"),
-        backgroundColor: Color(0xFF77DDE7),
-        leading: BackButton(color: Colors.black),
+        title: const Text("View Travellers"),
+        backgroundColor: const Color(0xFF77DDE7),
+        leading: const BackButton(color: Colors.black),
       ),
       body: filteredTravellers.isEmpty
-          ? Center(child: Text("No travellers found."))
+          ? const Center(child: Text("No travellers found."))
           : ListView.builder(
               itemCount: filteredTravellers.length,
               itemBuilder: (context, index) {
@@ -102,7 +103,7 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Color(0xFFF9F6FC),
+                      color: const Color(0xFFF9F6FC),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Padding(
@@ -113,19 +114,19 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
                           Expanded(
                             child: Text(
                               traveller['name'] ?? 'Unnamed',
-                              style: TextStyle(fontSize: 16),
+                              style: const TextStyle(fontSize: 16),
                             ),
                           ),
                           ElevatedButton(
                             onPressed: () => showTravellerDetails(traveller),
-                            child: Text("Details"),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal,
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
+                            child: const Text("Details"),
                           ),
                         ],
                       ),

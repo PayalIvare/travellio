@@ -1,11 +1,12 @@
-<<<<<<< HEAD
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class SelectSchool extends StatefulWidget {
+  const SelectSchool({Key? key}) : super(key: key);
+
   @override
-  _SelectSchoolState createState() => _SelectSchoolState();
+  State<SelectSchool> createState() => _SelectSchoolState();
 }
 
 class _SelectSchoolState extends State<SelectSchool> {
@@ -27,35 +28,26 @@ class _SelectSchoolState extends State<SelectSchool> {
     loadSchools();
   }
 
-  /// Loads schools from SharedPreferences
   Future<void> loadSchools() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? savedSchools = prefs.getString('schools');
-
+    final prefs = await SharedPreferences.getInstance();
+    final savedSchools = prefs.getString('schools');
     if (savedSchools != null) {
-      try {
-        List<dynamic> decoded = jsonDecode(savedSchools);
-        setState(() {
-          fullSchoolData = decoded;
-          schools = decoded.map<String>((school) => school['name'].toString()).toList();
-        });
-      } catch (e) {
-        print("🚨 Error decoding schools: $e");
-      }
-    } else {
-      print("ℹ️ No schools found in SharedPreferences");
+      final decoded = jsonDecode(savedSchools);
+      setState(() {
+        fullSchoolData = decoded;
+        schools = decoded.map<String>((school) => school['name'].toString()).toList();
+      });
     }
   }
 
-  /// Load routes for the selected school
   void loadRoutesForSelectedSchool() {
     if (selectedSchool != null) {
-      var school = fullSchoolData.firstWhere(
+      final school = fullSchoolData.firstWhere(
         (s) => s['name'] == selectedSchool,
-        orElse: () => {},
+        orElse: () => null,
       );
-      if (school.isNotEmpty) {
-        List<dynamic> routeList = school['routes'] ?? [];
+      if (school != null) {
+        final List<dynamic> routeList = school['routes'];
         setState(() {
           routes = routeList.map<String>((route) => "${route['start']} → ${route['end']}").toList();
           selectedRoute = null;
@@ -63,47 +55,40 @@ class _SelectSchoolState extends State<SelectSchool> {
           selectedPickup = null;
           selectedDrop = null;
         });
-      } else {
-        print("⚠️ Selected school not found in data");
       }
     }
   }
 
-  /// Load stops for the selected route
   void loadStopsForSelectedRoute() {
     if (selectedSchool != null && selectedRoute != null) {
-      var school = fullSchoolData.firstWhere(
+      final school = fullSchoolData.firstWhere(
         (s) => s['name'] == selectedSchool,
-        orElse: () => {},
+        orElse: () => null,
       );
-      if (school.isNotEmpty) {
-        List<dynamic> routeList = school['routes'] ?? [];
-
+      if (school != null) {
+        final List<dynamic> routeList = school['routes'];
         for (var route in routeList) {
-          String routeName = "${route['start']} → ${route['end']}";
+          final routeName = "${route['start']} → ${route['end']}";
           if (routeName == selectedRoute) {
-            List<dynamic> stopList = route['stops'] ?? [];
+            final stopList = route['stops'];
             setState(() {
-              stops = List<String>.from(stopList.map((s) => s.toString()));
+              stops = List<String>.from(stopList);
               selectedPickup = null;
               selectedDrop = null;
             });
             break;
           }
         }
-      } else {
-        print("⚠️ Selected school not found while loading stops");
       }
     }
   }
 
-  /// Save all selections to SharedPreferences and update traveller data
   Future<void> saveSelections() async {
     if (selectedSchool != null &&
         selectedRoute != null &&
         selectedPickup != null &&
         selectedDrop != null) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
 
       await prefs.setString('selectedSchool', selectedSchool!);
       await prefs.setString('selectedRoute', selectedRoute!);
@@ -112,13 +97,12 @@ class _SelectSchoolState extends State<SelectSchool> {
       await prefs.setString('drop_point', selectedDrop!);
 
       try {
-        String? loggedInEmail = prefs.getString('loggedInEmail');
-
+        final loggedInEmail = prefs.getString('loggedInEmail');
         if (loggedInEmail != null) {
-          String? data = prefs.getString('registeredTravellers');
+          final data = prefs.getString('registeredTravellers');
 
           if (data != null) {
-            List<dynamic> travellers = jsonDecode(data);
+            final travellers = jsonDecode(data);
 
             bool updated = false;
             for (var traveller in travellers) {
@@ -135,46 +119,46 @@ class _SelectSchoolState extends State<SelectSchool> {
 
             if (updated) {
               await prefs.setString('registeredTravellers', jsonEncode(travellers));
-              print("✅ Traveller updated successfully.");
+              debugPrint("✅ Traveller updated successfully.");
             } else {
-              print("⚠️ No matching traveller found for update.");
+              debugPrint("⚠️ No matching traveller found.");
             }
           } else {
-            print("❌ 'registeredTravellers' is null.");
+            debugPrint("❌ registeredTravellers is null");
           }
         } else {
-          print("❌ 'loggedInEmail' is null.");
+          debugPrint("❌ loggedInEmail is null");
         }
       } catch (e) {
-        print("🚨 Error updating traveller: $e");
+        debugPrint("🚨 Error updating traveller: $e");
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Selections saved successfully!')),
+        const SnackBar(content: Text('Selections saved successfully!')),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select all fields')),
+        const SnackBar(content: Text('Please select all fields')),
       );
     }
   }
 
-  /// Builds the widget tree
   @override
   Widget build(BuildContext context) {
+    const turquoise = Color(0xFF77DDE7);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Select School & Route'),
-        backgroundColor: Color(0xFF77DDE7),
+        title: const Text('Select School & Route'),
+        backgroundColor: turquoise,
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(
             children: [
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select School'),
+                decoration: const InputDecoration(labelText: 'Select School'),
                 value: selectedSchool,
                 items: schools
                     .map((school) => DropdownMenuItem<String>(
@@ -189,10 +173,10 @@ class _SelectSchoolState extends State<SelectSchool> {
                   loadRoutesForSelectedSchool();
                 },
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Route'),
+                decoration: const InputDecoration(labelText: 'Select Route'),
                 value: selectedRoute,
                 items: routes
                     .map((route) => DropdownMenuItem<String>(
@@ -207,10 +191,10 @@ class _SelectSchoolState extends State<SelectSchool> {
                   loadStopsForSelectedRoute();
                 },
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Pickup Point'),
+                decoration: const InputDecoration(labelText: 'Select Pickup Point'),
                 value: selectedPickup,
                 items: stops
                     .map((stop) => DropdownMenuItem<String>(
@@ -224,10 +208,10 @@ class _SelectSchoolState extends State<SelectSchool> {
                   });
                 },
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Drop Point'),
+                decoration: const InputDecoration(labelText: 'Select Drop Point'),
                 value: selectedDrop,
                 items: stops
                     .map((stop) => DropdownMenuItem<String>(
@@ -241,29 +225,29 @@ class _SelectSchoolState extends State<SelectSchool> {
                   });
                 },
               ),
-              SizedBox(height: 32),
+              const SizedBox(height: 32),
 
               ElevatedButton(
                 onPressed: saveSelections,
-                child: Text('Confirm & Save'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                child: const Text('Confirm & Save'),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               ElevatedButton(
                 onPressed: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String? school = prefs.getString('selectedSchool');
-                  String? route = prefs.getString('selectedRoute');
-                  String? pickup = prefs.getString('pickup_point');
-                  String? drop = prefs.getString('drop_point');
+                  final prefs = await SharedPreferences.getInstance();
+                  final school = prefs.getString('selectedSchool');
+                  final route = prefs.getString('selectedRoute');
+                  final pickup = prefs.getString('pickup_point');
+                  final drop = prefs.getString('drop_point');
 
                   if (school != null && route != null && pickup != null && drop != null) {
                     showDialog(
                       context: context,
                       builder: (context) {
                         return AlertDialog(
-                          title: Text('Your Selections'),
+                          title: const Text('Your Selections'),
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,7 +261,7 @@ class _SelectSchoolState extends State<SelectSchool> {
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: Text('Close'),
+                              child: const Text('Close'),
                             ),
                           ],
                         );
@@ -285,12 +269,12 @@ class _SelectSchoolState extends State<SelectSchool> {
                     );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('No selections found!')),
+                      const SnackBar(content: Text('No selections found!')),
                     );
                   }
                 },
-                child: Text('View Details'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                child: const Text('View Details'),
               ),
             ],
           ),
@@ -299,305 +283,3 @@ class _SelectSchoolState extends State<SelectSchool> {
     );
   }
 }
-=======
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-
-class SelectSchool extends StatefulWidget {
-  @override
-  _SelectSchoolState createState() => _SelectSchoolState();
-}
-
-class _SelectSchoolState extends State<SelectSchool> {
-  List<String> schools = [];
-  String? selectedSchool;
-
-  List<String> routes = [];
-  String? selectedRoute;
-
-  List<String> stops = [];
-  String? selectedPickup;
-  String? selectedDrop;
-
-  List<dynamic> fullSchoolData = [];
-
-  @override
-  void initState() {
-    super.initState();
-    loadSchools();
-  }
-
-  /// Loads schools from SharedPreferences
-  Future<void> loadSchools() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? savedSchools = prefs.getString('schools');
-
-    if (savedSchools != null) {
-      try {
-        List<dynamic> decoded = jsonDecode(savedSchools);
-        setState(() {
-          fullSchoolData = decoded;
-          schools = decoded.map<String>((school) => school['name'].toString()).toList();
-        });
-      } catch (e) {
-        print("🚨 Error decoding schools: $e");
-      }
-    } else {
-      print("ℹ️ No schools found in SharedPreferences");
-    }
-  }
-
-  /// Load routes for the selected school
-  void loadRoutesForSelectedSchool() {
-    if (selectedSchool != null) {
-      var school = fullSchoolData.firstWhere(
-        (s) => s['name'] == selectedSchool,
-        orElse: () => {},
-      );
-      if (school.isNotEmpty) {
-        List<dynamic> routeList = school['routes'] ?? [];
-        setState(() {
-          routes = routeList.map<String>((route) => "${route['start']} → ${route['end']}").toList();
-          selectedRoute = null;
-          stops = [];
-          selectedPickup = null;
-          selectedDrop = null;
-        });
-      } else {
-        print("⚠️ Selected school not found in data");
-      }
-    }
-  }
-
-  /// Load stops for the selected route
-  void loadStopsForSelectedRoute() {
-    if (selectedSchool != null && selectedRoute != null) {
-      var school = fullSchoolData.firstWhere(
-        (s) => s['name'] == selectedSchool,
-        orElse: () => {},
-      );
-      if (school.isNotEmpty) {
-        List<dynamic> routeList = school['routes'] ?? [];
-
-        for (var route in routeList) {
-          String routeName = "${route['start']} → ${route['end']}";
-          if (routeName == selectedRoute) {
-            List<dynamic> stopList = route['stops'] ?? [];
-            setState(() {
-              stops = List<String>.from(stopList.map((s) => s.toString()));
-              selectedPickup = null;
-              selectedDrop = null;
-            });
-            break;
-          }
-        }
-      } else {
-        print("⚠️ Selected school not found while loading stops");
-      }
-    }
-  }
-
-  /// Save all selections to SharedPreferences and update traveller data
-  Future<void> saveSelections() async {
-    if (selectedSchool != null &&
-        selectedRoute != null &&
-        selectedPickup != null &&
-        selectedDrop != null) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-
-      await prefs.setString('selectedSchool', selectedSchool!);
-      await prefs.setString('selectedRoute', selectedRoute!);
-      await prefs.setInt('selectedRouteIndex', routes.indexOf(selectedRoute!));
-      await prefs.setString('pickup_point', selectedPickup!);
-      await prefs.setString('drop_point', selectedDrop!);
-
-      try {
-        String? loggedInEmail = prefs.getString('loggedInEmail');
-
-        if (loggedInEmail != null) {
-          String? data = prefs.getString('registeredTravellers');
-
-          if (data != null) {
-            List<dynamic> travellers = jsonDecode(data);
-
-            bool updated = false;
-            for (var traveller in travellers) {
-              if (traveller is Map<String, dynamic> &&
-                  traveller['email'] == loggedInEmail) {
-                traveller['school'] = selectedSchool;
-                traveller['route'] = selectedRoute;
-                traveller['pickup'] = selectedPickup;
-                traveller['drop'] = selectedDrop;
-                updated = true;
-                break;
-              }
-            }
-
-            if (updated) {
-              await prefs.setString('registeredTravellers', jsonEncode(travellers));
-              print("✅ Traveller updated successfully.");
-            } else {
-              print("⚠️ No matching traveller found for update.");
-            }
-          } else {
-            print("❌ 'registeredTravellers' is null.");
-          }
-        } else {
-          print("❌ 'loggedInEmail' is null.");
-        }
-      } catch (e) {
-        print("🚨 Error updating traveller: $e");
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Selections saved successfully!')),
-      );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select all fields')),
-      );
-    }
-  }
-
-  /// Builds the widget tree
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Select School & Route'),
-        backgroundColor: Color(0xFF77DDE7),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select School'),
-                value: selectedSchool,
-                items: schools
-                    .map((school) => DropdownMenuItem<String>(
-                          value: school,
-                          child: Text(school),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedSchool = value;
-                  });
-                  loadRoutesForSelectedSchool();
-                },
-              ),
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Route'),
-                value: selectedRoute,
-                items: routes
-                    .map((route) => DropdownMenuItem<String>(
-                          value: route,
-                          child: Text(route),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedRoute = value;
-                  });
-                  loadStopsForSelectedRoute();
-                },
-              ),
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Pickup Point'),
-                value: selectedPickup,
-                items: stops
-                    .map((stop) => DropdownMenuItem<String>(
-                          value: stop,
-                          child: Text(stop),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedPickup = value;
-                  });
-                },
-              ),
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Select Drop Point'),
-                value: selectedDrop,
-                items: stops
-                    .map((stop) => DropdownMenuItem<String>(
-                          value: stop,
-                          child: Text(stop),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedDrop = value;
-                  });
-                },
-              ),
-              SizedBox(height: 32),
-
-              ElevatedButton(
-                onPressed: saveSelections,
-                child: Text('Confirm & Save'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              ),
-              SizedBox(height: 16),
-
-              ElevatedButton(
-                onPressed: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  String? school = prefs.getString('selectedSchool');
-                  String? route = prefs.getString('selectedRoute');
-                  String? pickup = prefs.getString('pickup_point');
-                  String? drop = prefs.getString('drop_point');
-
-                  if (school != null && route != null && pickup != null && drop != null) {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: Text('Your Selections'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('School: $school'),
-                              Text('Route: $route'),
-                              Text('Pickup Point: $pickup'),
-                              Text('Drop Point: $drop'),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text('Close'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('No selections found!')),
-                    );
-                  }
-                },
-                child: Text('View Details'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
->>>>>>> b543c71 (Update lib folder with latest changes)

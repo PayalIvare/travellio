@@ -5,14 +5,16 @@ import 'HolidayCalendarPage.dart';
 import 'LiveLocationPage.dart';
 
 class TravellerDashboard extends StatefulWidget {
+  const TravellerDashboard({Key? key}) : super(key: key);
+
   @override
-  _TravellerDashboardState createState() => _TravellerDashboardState();
+  State<TravellerDashboard> createState() => _TravellerDashboardState();
 }
 
 class _TravellerDashboardState extends State<TravellerDashboard> {
-  final Color turquoise = Color(0xFF77DDE7);
-  final Color black = Colors.black;
-  final Color white = Colors.white;
+  static const Color turquoise = Color(0xFF77DDE7);
+  static const Color black = Colors.black;
+  static const Color white = Colors.white;
 
   String travellerName = "Traveller";
 
@@ -23,7 +25,7 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
   }
 
   Future<void> loadTravellerName() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
       travellerName = prefs.getString('travellerName') ?? "Traveller";
     });
@@ -35,22 +37,22 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
       backgroundColor: white,
       body: Column(
         children: [
-          // ✅ Top bar at very top with no extra padding
+          // ✅ Top bar
           Container(
             color: turquoise,
-            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top), // safe area only
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: Icon(Icons.arrow_back, color: white),
+                  icon: const Icon(Icons.arrow_back, color: white),
                   onPressed: () => Navigator.pop(context),
                 ),
                 IconButton(
-                  icon: Icon(Icons.menu, color: white),
+                  icon: const Icon(Icons.menu, color: white),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Menu tapped')),
+                      const SnackBar(content: Text('Menu tapped')),
                     );
                   },
                 ),
@@ -58,32 +60,34 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
             ),
           ),
 
-          // ✅ Hello block with rounded bottom corners
+          // ✅ Hello block
           Container(
             width: double.infinity,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: turquoise,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
               ),
             ),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello,',
-                    style: TextStyle(color: white, fontSize: 24)),
-                Text(travellerName,
-                    style: TextStyle(
-                        color: white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold)),
-                SizedBox(height: 5),
-                Text('Your Transport Solution',
-                    style: TextStyle(color: white, fontSize: 20)),
-                // Text('Transport Solution',
-                //     style: TextStyle(color: white, fontSize: 20)),
+                const Text('Hello,', style: TextStyle(color: white, fontSize: 24)),
+                Text(
+                  travellerName,
+                  style: const TextStyle(
+                    color: white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Your Transport Solution',
+                  style: TextStyle(color: white, fontSize: 20),
+                ),
               ],
             ),
           ),
@@ -98,49 +102,46 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
                 mainAxisSpacing: 16,
                 children: [
                   buildDashboardButton(
-                    context,
                     icon: Icons.school,
                     label: 'Select School',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SelectSchool(),
+                          builder: (_) => const SelectSchool(),
                         ),
                       );
                     },
                   ),
                   buildDashboardButton(
-                    context,
                     icon: Icons.business,
                     label: 'Select Operator',
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Select Operator tapped')),
+                        const SnackBar(content: Text('Select Operator tapped')),
                       );
                     },
                   ),
                   buildDashboardButton(
-                    context,
                     icon: Icons.location_on,
                     label: 'Live Location',
                     onTap: () {
                       Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                    builder: (context) => LiveLocationPage(),
-                      ));
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LiveLocationPage(),
+                        ),
+                      );
                     },
                   ),
                   buildDashboardButton(
-                    context,
                     icon: Icons.calendar_today,
                     label: 'Calendar',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => HolidayCalendarPage(),
+                          builder: (_) => const HolidayCalendarPage(),
                         ),
                       );
                     },
@@ -154,8 +155,7 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
     );
   }
 
-  Widget buildDashboardButton(
-    BuildContext context, {
+  Widget buildDashboardButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -164,9 +164,9 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: black, // ✅ black background
+          color: black,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Colors.black12,
               blurRadius: 4,
@@ -179,13 +179,13 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: turquoise), // ✅ icon turquoise
-              SizedBox(height: 10),
+              Icon(icon, size: 40, color: turquoise),
+              const SizedBox(height: 10),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
-                  color: turquoise, // ✅ text turquoise
+                  color: turquoise,
                   fontWeight: FontWeight.bold,
                 ),
               ),

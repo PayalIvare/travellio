@@ -3,12 +3,14 @@ import 'login_page.dart';
 import 'register_page.dart';
 
 class HomePage extends StatelessWidget {
+  const HomePage({Key? key}) : super(key: key); // ✅ const constructor
+
   @override
   Widget build(BuildContext context) {
-    double buttonWidth = MediaQuery.of(context).size.width > 600 ? 300 : double.infinity;
+    final double buttonWidth = MediaQuery.of(context).size.width > 600 ? 300 : double.infinity;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Welcome to Travel App')),
+      appBar: AppBar(title: const Text('Welcome to Travel App')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -18,20 +20,26 @@ class HomePage extends StatelessWidget {
               SizedBox(
                 width: buttonWidth,
                 child: ElevatedButton(
-                  child: Text('Login'),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => LoginPage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) =>  LoginPage()),
+                    );
                   },
+                  child: const Text('Login'),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               SizedBox(
                 width: buttonWidth,
                 child: ElevatedButton(
-                  child: Text('Register'),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => RegisterPage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) =>  RegisterPage()),
+                    );
                   },
+                  child: const Text('Register'),
                 ),
               ),
             ],

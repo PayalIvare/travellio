@@ -4,12 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class HolidayCalendarPage extends StatefulWidget {
+  const HolidayCalendarPage({Key? key}) : super(key: key); // ✅ const constructor
+
   @override
   State<HolidayCalendarPage> createState() => _HolidayCalendarPageState();
 }
 
 class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
-  final Color turquoise = Color(0xFF77DDE7);
+  final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
   final Color white = Colors.white;
   final Color holidayColor = Colors.redAccent;
@@ -25,21 +27,18 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
   }
 
   Future<void> _loadSavedHolidays() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? saved = prefs.getString('holidays');
-    if (saved != null) {
-      List<dynamic> savedList = json.decode(saved);
-      setState(() {
-        _selectedHolidays =
-            savedList.map((e) => DateTime.parse(e)).toList();
-      });
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('holidays');
+    if (saved == null || saved.isEmpty) return;
+    final savedList = json.decode(saved) as List<dynamic>;
+    setState(() {
+      _selectedHolidays = savedList.map((e) => DateTime.tryParse(e.toString()) ?? DateTime.now()).toList();
+    });
   }
 
   Future<void> _saveHolidays() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> encoded =
-        _selectedHolidays.map((e) => e.toIso8601String()).toList();
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = _selectedHolidays.map((e) => e.toIso8601String()).toList();
     await prefs.setString('holidays', json.encode(encoded));
   }
 
@@ -57,7 +56,7 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Holiday Calendar'),
+        title: const Text('Holiday Calendar'),
         backgroundColor: turquoise,
       ),
       backgroundColor: black,
@@ -81,11 +80,11 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
               },
               calendarStyle: CalendarStyle(
                 holidayDecoration: BoxDecoration(
-                  color: holidayColor, // highlight holidays in red
+                  color: holidayColor,
                   shape: BoxShape.circle,
                 ),
                 selectedDecoration: BoxDecoration(
-                  color: turquoise, // highlight selected day in turquoise
+                  color: turquoise,
                   shape: BoxShape.circle,
                 ),
                 todayDecoration: BoxDecoration(
@@ -110,7 +109,7 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
               holidayPredicate: (day) =>
                   _selectedHolidays.any((holiday) => isSameDay(holiday, day)),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -118,7 +117,6 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
                   setState(() {
                     _selecting = !_selecting;
                   });
-
                   if (!_selecting) {
                     await _saveHolidays();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -133,14 +131,14 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: turquoise,
                   foregroundColor: black,
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: Text(
                   _selecting ? 'Finish Selecting Holidays' : 'Add Holidays',
-                  style: TextStyle(fontSize: 18),
+                  style: const TextStyle(fontSize: 18),
                 ),
               ),
             ),
