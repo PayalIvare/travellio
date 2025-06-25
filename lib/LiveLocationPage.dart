@@ -58,6 +58,8 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   Future<void> fetchDriverRouteAndTrack() async {
     try {
       final snapshot = await _firestore.collection('assignedDrivers').get();
+      print("assignedDrivers snapshot: ${snapshot.docs.length}");
+
       if (snapshot.docs.isEmpty) return;
 
       final doc = snapshot.docs.first.data();
@@ -85,10 +87,14 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
         }
       }
 
-      final points = [start!, ...stopPoints, end!];
-      await fetchORSPath(points);
+      final points = [if (start != null) start!, ...stopPoints, if (end != null) end!];
+      if (points.length >= 2) {
+        await fetchORSPath(points);
+      }
+
+      print("Start: $start, End: $end, StopCount: ${stopPoints.length}");
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching driver route: $e");
     }
   }
 
@@ -121,33 +127,39 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   }
 
   Future<void> fetchLiveLocation() async {
-    final snapshot = await _firestore.collection('busLocations').get();
-    if (snapshot.docs.isNotEmpty) {
-      final data = snapshot.docs.first.data();
-      final active = data['active'] ?? false;
+    try {
+      final snapshot = await _firestore.collection('busLocations').get();
+      print("busLocations snapshot: ${snapshot.docs.length}");
 
-      if (!active) {
-        setState(() => isRideActive = false);
-        _timer?.cancel();
-        return;
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data();
+        final active = data['active'] ?? false;
+
+        if (!active) {
+          setState(() => isRideActive = false);
+          _timer?.cancel();
+          return;
+        }
+
+        final lat = data['lat'];
+        final lng = data['lng'];
+        if (lat != null && lng != null) {
+          final updatedPosition = LatLng(lat, lng);
+          setState(() {
+            busPosition = updatedPosition;
+            markers.removeWhere((m) => m.markerId.value == 'bus');
+            markers.add(Marker(
+              markerId: const MarkerId('bus'),
+              position: updatedPosition,
+              icon: busIcon ?? BitmapDescriptor.defaultMarker,
+            ));
+          });
+
+          mapController?.animateCamera(CameraUpdate.newLatLng(updatedPosition));
+        }
       }
-
-      final lat = data['lat'];
-      final lng = data['lng'];
-      if (lat != null && lng != null) {
-        final updatedPosition = LatLng(lat, lng);
-        setState(() {
-          busPosition = updatedPosition;
-          markers.removeWhere((m) => m.markerId.value == 'bus');
-          markers.add(Marker(
-            markerId: const MarkerId('bus'),
-            position: updatedPosition,
-            icon: busIcon ?? BitmapDescriptor.defaultMarker,
-          ));
-        });
-
-        mapController?.animateCamera(CameraUpdate.newLatLng(updatedPosition));
-      }
+    } catch (e) {
+      debugPrint("Error fetching bus location: $e");
     }
   }
 
@@ -167,15 +179,18 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
       ),
       body: (!isRideActive)
           ? const Center(child: Text("Ride has ended."))
-          : (start != null && end != null && busPosition != null)
+          : (markers.isNotEmpty || busPosition != null)
               ? GoogleMap(
-                  initialCameraPosition: CameraPosition(target: busPosition!, zoom: 15),
+                  initialCameraPosition: CameraPosition(
+                    target: busPosition ?? start ?? const LatLng(18.5204, 73.8567), // fallback to Pune
+                    zoom: 15,
+                  ),
                   markers: markers,
                   polylines: polylines,
                   onMapCreated: (controller) => mapController = controller,
-                  myLocationEnabled: true,
+                  myLocationEnabled: false,
                 )
-              : const Center(child: CircularProgressIndicator()),
+              : const Center(child: Text("Loading map data...")),
     );
   }
 }
