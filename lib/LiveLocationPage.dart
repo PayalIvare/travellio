@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -15,26 +14,28 @@ class LiveLocationPage extends StatefulWidget {
 
 class _LiveLocationPageState extends State<LiveLocationPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   List<Map<String, dynamic>> schools = [];
   String? selectedSchool;
   List<Map<String, dynamic>> routes = [];
   String? selectedRouteName;
   Map<String, dynamic>? selectedRoute;
-
   LatLng? start, end, busPosition;
   List<LatLng> stopPoints = [];
   List<LatLng> roadPath = [];
-  Timer? _timer;
 
   BitmapDescriptor? startIcon, endIcon, stopIcon, busIcon;
+  GoogleMapController? mapController;
+  bool iconsLoaded = false;
+
+  StreamSubscription<DocumentSnapshot>? _locationSubscription;
+  Map<String, dynamic>? currentDriver; // stores current assignedDrivers doc
 
   @override
   void initState() {
     super.initState();
     _loadIcons();
-    _fetchAssignedSchools();
+    _fetchAssignedDrivers();
   }
 
   Future<void> _loadIcons() async {
@@ -47,22 +48,29 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
           const ImageConfiguration(size: Size(18, 18)), 'assets/icons/stop.png');
       busIcon = await BitmapDescriptor.fromAssetImage(
           const ImageConfiguration(size: Size(20, 20)), 'assets/icons/bus.png');
+
+      setState(() {
+        iconsLoaded = true;
+      });
     } catch (e) {
       debugPrint("Error loading icons: $e");
     }
   }
 
-  Future<void> _fetchAssignedSchools() async {
+  Future<void> _fetchAssignedDrivers() async {
     try {
       final snapshot = await _firestore.collection('assignedDrivers').get();
       if (snapshot.docs.isEmpty) return;
 
-      final doc = snapshot.docs.first.data();
+      final doc = snapshot.docs.first;
+      final data = doc.data();
+
       setState(() {
-        schools = List<Map<String, dynamic>>.from(doc['schools'] ?? []);
+        currentDriver = data;
+        schools = List<Map<String, dynamic>>.from(data['schools'] ?? []);
       });
     } catch (e) {
-      debugPrint("Error fetching schools: $e");
+      debugPrint("Error fetching assigned drivers: $e");
     }
   }
 
@@ -108,8 +116,52 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
       await _fetchORSPath(allPoints);
     }
 
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchLiveLocation());
+    final driverEmail = currentDriver?['driver']?['email'];
+    if (driverEmail != null) {
+      final uid = await _getDriverUidByEmail(driverEmail);
+      if (uid != null) {
+        _subscribeToLiveLocation(uid);
+      } else {
+        debugPrint('No UID found for email: $driverEmail');
+      }
+    }
+  }
+
+  Future<String?> _getDriverUidByEmail(String email) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.first.id; // UID is document ID
+      }
+    } catch (e) {
+      debugPrint('Error getting UID by email: $e');
+    }
+    return null;
+  }
+
+  void _subscribeToLiveLocation(String uid) {
+    _locationSubscription?.cancel();
+    _locationSubscription = _firestore
+        .collection('busLocations')
+        .doc(uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data();
+        if (data != null && data['lat'] != null && data['lng'] != null) {
+          setState(() {
+            busPosition = LatLng(data['lat'], data['lng']);
+          });
+        }
+      }
+    }, onError: (e) {
+      debugPrint("Live location stream error: $e");
+    });
   }
 
   Future<void> _fetchORSPath(List<LatLng> points) async {
@@ -131,38 +183,18 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
         final coords = data['features'][0]['geometry']['coordinates'] as List;
         setState(() {
           roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
-          debugPrint("Fetched road path with \${roadPath.length} points");
         });
       } else {
-        debugPrint("ORS failed: \${response.statusCode}");
+        debugPrint("ORS failed: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("ORS error: $e");
     }
   }
 
-  Future<void> _fetchLiveLocation() async {
-    try {
-      final uid = _auth.currentUser?.uid;
-      if (uid == null) return;
-
-      final doc = await _firestore.collection('busLocations').doc(uid).get();
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null && data['lat'] != null && data['lng'] != null) {
-          setState(() {
-            busPosition = LatLng(data['lat'], data['lng']);
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Live location error: $e");
-    }
-  }
-
   @override
   void dispose() {
-    _timer?.cancel();
+    _locationSubscription?.cancel();
     super.dispose();
   }
 
@@ -209,57 +241,60 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
                 setState(() {
                   selectedRouteName = val;
                   selectedRoute = routes.firstWhere((r) => r['name'] == val);
-                  _fetchRouteAndStartTracking();
                 });
+                _fetchRouteAndStartTracking();
               },
             ),
           Expanded(
-            child: (start != null && end != null)
-                ? GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: busPosition ?? start ?? defaultLocation,
-                      zoom: 14,
-                    ),
-                    markers: {
-                      if (start != null)
-                        Marker(
-                            markerId: const MarkerId('start'),
-                            position: start!,
-                            icon: startIcon ?? BitmapDescriptor.defaultMarker),
-                      if (end != null)
-                        Marker(
-                            markerId: const MarkerId('end'),
-                            position: end!,
-                            icon: endIcon ?? BitmapDescriptor.defaultMarker),
-                      if (busPosition != null)
-                        Marker(
-                            markerId: const MarkerId('bus'),
-                            position: busPosition!,
-                            icon: busIcon ?? BitmapDescriptor.defaultMarker),
-                      ...stopPoints.map(
-                        (s) => Marker(
-                          markerId: MarkerId('stop-\${s.latitude},\${s.longitude}'),
-                          position: s,
-                          icon: stopIcon ?? BitmapDescriptor.defaultMarker,
+            child: (!iconsLoaded)
+                ? const Center(child: CircularProgressIndicator())
+                : (start != null && end != null)
+                    ? GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: busPosition ?? start ?? defaultLocation,
+                          zoom: 14,
                         ),
-                      ),
-                    },
-                    polylines: {
-                      if (roadPath.isNotEmpty)
-                        Polyline(
-                          polylineId: const PolylineId('roadPath'),
-                          color: Colors.blueAccent,
-                          width: 4,
-                          points: roadPath,
-                        ),
-                    },
-                    myLocationEnabled: false,
-                    myLocationButtonEnabled: true,
-                    onMapCreated: (controller) {
-                      debugPrint("Map created.");
-                    },
-                  )
-                : const Center(child: Text("Please select school and route")),
+                        markers: {
+                          if (start != null)
+                            Marker(
+                              markerId: const MarkerId('start'),
+                              position: start!,
+                              icon: startIcon ?? BitmapDescriptor.defaultMarker,
+                            ),
+                          if (end != null)
+                            Marker(
+                              markerId: const MarkerId('end'),
+                              position: end!,
+                              icon: endIcon ?? BitmapDescriptor.defaultMarker,
+                            ),
+                          if (busPosition != null)
+                            Marker(
+                              markerId: const MarkerId('bus'),
+                              position: busPosition!,
+                              icon: busIcon ?? BitmapDescriptor.defaultMarker,
+                            ),
+                          ...stopPoints.map(
+                            (s) => Marker(
+                              markerId: MarkerId('stop-${s.latitude},${s.longitude}'),
+                              position: s,
+                              icon: stopIcon ?? BitmapDescriptor.defaultMarker,
+                            ),
+                          ),
+                        },
+                        polylines: {
+                          if (roadPath.isNotEmpty)
+                            Polyline(
+                              polylineId: const PolylineId('roadPath'),
+                              color: Colors.blueAccent,
+                              width: 4,
+                              points: roadPath,
+                            ),
+                        },
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: true,
+                        onMapCreated: (controller) => mapController = controller,
+                      )
+                    : const Center(child: Text("Please select school and route")),
           )
         ],
       ),

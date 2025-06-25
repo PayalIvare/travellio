@@ -1,4 +1,4 @@
-// [Your existing imports...]
+// Updated and improved DriverLocationPage with fixes
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -114,7 +114,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       final response = await http.post(
         url,
         headers: {
-          'Authorization': apiKey,
+          'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({'coordinates': coordinates}),
@@ -190,7 +190,11 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
     await drawRouteWithORS(routePoints);
 
-    try {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final docRef = _firestore.collection('busLocations').doc(user.uid);
+      final exists = (await docRef.get()).exists;
+
       final pos = await Geolocator.getCurrentPosition();
       busPosition = LatLng(pos.latitude, pos.longitude);
       markers.add(Marker(
@@ -198,19 +202,24 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
         position: busPosition!,
         icon: busIcon ?? BitmapDescriptor.defaultMarker,
       ));
+
       mapController?.animateCamera(CameraUpdate.newLatLngZoom(busPosition!, 15));
 
-      final user = _auth.currentUser;
-      if (user != null) {
-        await _firestore.collection('busLocations').doc(user.uid).set({
+      if (!exists) {
+        await docRef.set({
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'timestamp': FieldValue.serverTimestamp(),
+          'active': true,
+        });
+      } else {
+        await docRef.update({
           'lat': pos.latitude,
           'lng': pos.longitude,
           'timestamp': FieldValue.serverTimestamp(),
           'active': true,
         });
       }
-    } catch (e) {
-      debugPrint('Location fetch failed: $e');
     }
 
     setState(() => rideStarted = true);
