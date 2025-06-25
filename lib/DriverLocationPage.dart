@@ -1,4 +1,3 @@
-// Updated and improved DriverLocationPage with fixes
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -105,14 +104,11 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   }
 
   Future<void> drawRouteWithORS(List<LatLng> waypoints) async {
-    const apiKey = '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9';
-
     final coordinates = waypoints.map((p) => [p.longitude, p.latitude]).toList();
-    final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
 
     try {
       final response = await http.post(
-        url,
+        Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson'),
         headers: {
           'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
           'Content-Type': 'application/json',
@@ -135,14 +131,24 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
           ));
         });
       } else {
-        debugPrint('ORS failed: ${response.body}');
+        debugPrint('ORS error: ${response.body}');
       }
     } catch (e) {
-      debugPrint('ORS error: $e');
+      debugPrint('Failed to draw route: $e');
     }
   }
 
   Future<void> startTracking() async {
+    // ✅ Request location permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        debugPrint('Location permission denied');
+        return;
+      }
+    }
+
     if (selectedRouteSummary == null) return;
     fullRoute = selectedRouteSummary!['full'];
     markers.clear();
@@ -187,7 +193,6 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
     }
 
     if (end != null) routePoints.add(end!);
-
     await drawRouteWithORS(routePoints);
 
     final user = _auth.currentUser;
@@ -205,20 +210,17 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
       mapController?.animateCamera(CameraUpdate.newLatLngZoom(busPosition!, 15));
 
+      final busData = {
+        'lat': pos.latitude,
+        'lng': pos.longitude,
+        'timestamp': FieldValue.serverTimestamp(),
+        'active': true,
+      };
+
       if (!exists) {
-        await docRef.set({
-          'lat': pos.latitude,
-          'lng': pos.longitude,
-          'timestamp': FieldValue.serverTimestamp(),
-          'active': true,
-        });
+        await docRef.set(busData);
       } else {
-        await docRef.update({
-          'lat': pos.latitude,
-          'lng': pos.longitude,
-          'timestamp': FieldValue.serverTimestamp(),
-          'active': true,
-        });
+        await docRef.update(busData);
       }
     }
 
