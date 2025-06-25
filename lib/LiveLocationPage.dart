@@ -33,14 +33,18 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   }
 
   Future<void> _loadIcons() async {
-    startIcon = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(18, 18)), 'assets/icons/start.png');
-    endIcon = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(18, 18)), 'assets/icons/end.png');
-    stopIcon = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(18, 18)), 'assets/icons/stop.png');
-    busIcon = await BitmapDescriptor.fromAssetImage(
-        const ImageConfiguration(size: Size(20, 20)), 'assets/icons/bus.png');
+    try {
+      startIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(18, 18)), 'assets/icons/start.png');
+      endIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(18, 18)), 'assets/icons/end.png');
+      stopIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(18, 18)), 'assets/icons/stop.png');
+      busIcon = await BitmapDescriptor.fromAssetImage(
+          const ImageConfiguration(size: Size(20, 20)), 'assets/icons/bus.png');
+    } catch (e) {
+      debugPrint("Error loading icons: $e");
+    }
   }
 
   Future<void> fetchRouteAndStartTracking() async {
@@ -82,6 +86,8 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
         final allPoints = [start!, ...stopPoints, end!];
         await fetchORSPath(allPoints);
       }
+
+      debugPrint("Fetched ${stopPoints.length} stop(s)");
     } catch (e) {
       debugPrint("Route fetch error: $e");
     }
@@ -106,6 +112,7 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
         final coords = data['features'][0]['geometry']['coordinates'] as List;
         setState(() {
           roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
+          debugPrint("Fetched road path with ${roadPath.length} points");
         });
       } else {
         debugPrint("ORS failed: ${response.statusCode}");
@@ -142,42 +149,48 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final defaultLocation = const LatLng(18.5204, 73.8567); // Pune fallback
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Live Bus Location'),
         backgroundColor: Colors.lightBlueAccent,
       ),
-      body: (start != null && end != null && busPosition != null)
-          ? GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: busPosition!,
-                zoom: 15,
-              ),
-              markers: {
-                Marker(markerId: const MarkerId('start'), position: start!, icon: startIcon!),
-                Marker(markerId: const MarkerId('end'), position: end!, icon: endIcon!),
-                Marker(markerId: const MarkerId('bus'), position: busPosition!, icon: busIcon!),
-                ...stopPoints.map(
-                  (s) => Marker(
-                    markerId: MarkerId('stop-${s.latitude},${s.longitude}'),
-                    position: s,
-                    icon: stopIcon!,
-                  ),
-                ),
-              },
-              polylines: {
-                if (roadPath.isNotEmpty)
-                  Polyline(
-                    polylineId: const PolylineId('roadPath'),
-                    color: Colors.blueAccent,
-                    width: 4,
-                    points: roadPath,
-                  ),
-              },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-            )
-          : const Center(child: CircularProgressIndicator()),
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: busPosition ?? start ?? defaultLocation,
+          zoom: 14,
+        ),
+        markers: {
+          if (start != null)
+            Marker(markerId: const MarkerId('start'), position: start!, icon: startIcon ?? BitmapDescriptor.defaultMarker),
+          if (end != null)
+            Marker(markerId: const MarkerId('end'), position: end!, icon: endIcon ?? BitmapDescriptor.defaultMarker),
+          if (busPosition != null)
+            Marker(markerId: const MarkerId('bus'), position: busPosition!, icon: busIcon ?? BitmapDescriptor.defaultMarker),
+          ...stopPoints.map(
+            (s) => Marker(
+              markerId: MarkerId('stop-${s.latitude},${s.longitude}'),
+              position: s,
+              icon: stopIcon ?? BitmapDescriptor.defaultMarker,
+            ),
+          ),
+        },
+        polylines: {
+          if (roadPath.isNotEmpty)
+            Polyline(
+              polylineId: const PolylineId('roadPath'),
+              color: Colors.blueAccent,
+              width: 4,
+              points: roadPath,
+            ),
+        },
+        myLocationEnabled: false,
+        myLocationButtonEnabled: true,
+        onMapCreated: (controller) {
+          debugPrint("Map created.");
+        },
+      ),
     );
   }
 }
