@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
 class LiveLocationPage extends StatefulWidget {
-  const LiveLocationPage({Key? key}) : super(key: key); // ✅ const constructor
+  const LiveLocationPage({Key? key}) : super(key: key);
 
   @override
   State<LiveLocationPage> createState() => _LiveLocationPageState();
@@ -17,121 +16,145 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   LatLng? busPosition;
-  List<LatLng> stopPoints = [];
   LatLng? start;
   LatLng? end;
+  List<LatLng> stopPoints = [];
   List<LatLng> roadPath = [];
   Timer? _timer;
+  bool isRideActive = true;
+
+  GoogleMapController? mapController;
+  Set<Marker> markers = {};
+  Set<Polyline> polylines = {};
+
+  BitmapDescriptor? startIcon;
+  BitmapDescriptor? endIcon;
+  BitmapDescriptor? stopIcon;
+  BitmapDescriptor? busIcon;
 
   @override
   void initState() {
     super.initState();
+    loadCustomIcons();
     fetchDriverRouteAndTrack();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) => fetchLiveLocation());
+  }
+
+  Future<void> loadCustomIcons() async {
+    startIcon = await _loadIcon('assets/icons/start.png', BitmapDescriptor.hueGreen);
+    endIcon = await _loadIcon('assets/icons/end.png', BitmapDescriptor.hueRed);
+    stopIcon = await _loadIcon('assets/icons/stop.png', BitmapDescriptor.hueYellow);
+    busIcon = await _loadIcon('assets/icons/bus.png', BitmapDescriptor.hueOrange);
+  }
+
+  Future<BitmapDescriptor> _loadIcon(String path, double fallbackHue) async {
+    try {
+      return await BitmapDescriptor.fromAssetImage(const ImageConfiguration(size: Size(18, 18)), path);
+    } catch (_) {
+      return BitmapDescriptor.defaultMarkerWithHue(fallbackHue);
+    }
   }
 
   Future<void> fetchDriverRouteAndTrack() async {
     try {
       final snapshot = await _firestore.collection('assignedDrivers').get();
-      if (snapshot.docs.isEmpty) {
-        debugPrint("No assigned drivers found.");
-        return;
-      }
+      if (snapshot.docs.isEmpty) return;
 
       final doc = snapshot.docs.first.data();
-      final schoolList = doc['schools'] as List?;
-      if (schoolList == null || schoolList.isEmpty) {
-        debugPrint("No schools found in assigned driver.");
-        return;
-      }
+      final school = (doc['schools'] as List).first;
+      final route = (school['routes'] as List).first;
 
-      final school = schoolList.first;
-      final routeList = school['routes'] as List?;
-      if (routeList == null || routeList.isEmpty) {
-        debugPrint("No routes found in school.");
-        return;
-      }
-
-      final route = routeList.first;
-
-      if (route['start']?['location'] != null) {
-        final startGeo = route['start']['location'];
+      final startGeo = route['start']?['location'] as GeoPoint?;
+      if (startGeo != null) {
         start = LatLng(startGeo.latitude, startGeo.longitude);
+        markers.add(Marker(markerId: const MarkerId('start'), position: start!, icon: startIcon ?? BitmapDescriptor.defaultMarker));
       }
 
-      if (route['end']?['location'] != null) {
-        final endGeo = route['end']['location'];
+      final endGeo = route['end']?['location'] as GeoPoint?;
+      if (endGeo != null) {
         end = LatLng(endGeo.latitude, endGeo.longitude);
+        markers.add(Marker(markerId: const MarkerId('end'), position: end!, icon: endIcon ?? BitmapDescriptor.defaultMarker));
       }
 
-      stopPoints.clear();
-      if (route['stops'] != null) {
-        for (final stop in route['stops']) {
-          final loc = stop['location'];
-          if (loc != null) {
-            stopPoints.add(LatLng(loc.latitude, loc.longitude));
-          }
+      for (final stop in route['stops'] ?? []) {
+        final loc = stop['location'] as GeoPoint?;
+        if (loc != null) {
+          final point = LatLng(loc.latitude, loc.longitude);
+          stopPoints.add(point);
+          markers.add(Marker(markerId: MarkerId(stop['name']), position: point, icon: stopIcon ?? BitmapDescriptor.defaultMarker));
         }
-        debugPrint("Fetched ${stopPoints.length} stop(s)");
       }
 
-      if (start != null && end != null) {
-        final allPoints = [start!, ...stopPoints, end!];
-        await fetchORSPath(allPoints);
-      } else {
-        debugPrint("Start or End is null.");
-      }
+      final points = [start!, ...stopPoints, end!];
+      await fetchORSPath(points);
     } catch (e) {
-      debugPrint("Error fetching route: $e");
+      debugPrint("Error: $e");
     }
   }
 
   Future<void> fetchORSPath(List<LatLng> points) async {
-    try {
-      final coordinates = points.map((p) => [p.longitude, p.latitude]).toList();
-      final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
+    final coordinates = points.map((p) => [p.longitude, p.latitude]).toList();
+    final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'coordinates': coordinates}),
-      );
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': '5b3ce3597851110001cf6248c06c9e12119047b7a3b6369d5bd37ed9',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'coordinates': coordinates}),
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final coords = data['features'][0]['geometry']['coordinates'] as List;
-        setState(() {
-          roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
-          debugPrint("Fetched road path with ${roadPath.length} points");
-        });
-      } else {
-        debugPrint("ORS API failed: ${response.body}");
-      }
-    } catch (e) {
-      debugPrint("Error fetching ORS path: $e");
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final coords = data['features'][0]['geometry']['coordinates'] as List;
+      setState(() {
+        roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
+        polylines.add(Polyline(
+          polylineId: const PolylineId("route"),
+          color: Colors.blueAccent,
+          width: 4,
+          points: roadPath,
+        ));
+      });
     }
   }
 
   Future<void> fetchLiveLocation() async {
-    try {
-      final live = await _firestore.collection('liveLocations').get();
-      if (live.docs.isNotEmpty) {
-        final data = live.docs.first.data();
-        setState(() {
-          busPosition = LatLng(data['lat'], data['lng']);
-        });
+    final snapshot = await _firestore.collection('busLocations').get();
+    if (snapshot.docs.isNotEmpty) {
+      final data = snapshot.docs.first.data();
+      final active = data['active'] ?? false;
+
+      if (!active) {
+        setState(() => isRideActive = false);
+        _timer?.cancel();
+        return;
       }
-    } catch (e) {
-      debugPrint("Error fetching live location: $e");
+
+      final lat = data['lat'];
+      final lng = data['lng'];
+      if (lat != null && lng != null) {
+        final updatedPosition = LatLng(lat, lng);
+        setState(() {
+          busPosition = updatedPosition;
+          markers.removeWhere((m) => m.markerId.value == 'bus');
+          markers.add(Marker(
+            markerId: const MarkerId('bus'),
+            position: updatedPosition,
+            icon: busIcon ?? BitmapDescriptor.defaultMarker,
+          ));
+        });
+
+        mapController?.animateCamera(CameraUpdate.newLatLng(updatedPosition));
+      }
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    mapController?.dispose();
     super.dispose();
   }
 
@@ -139,63 +162,20 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Live Bus Location'),
+        title: const Text("Live Bus Location"),
         backgroundColor: Colors.lightBlueAccent,
       ),
-      body: (start != null && end != null && busPosition != null)
-          ? FlutterMap(
-              options: MapOptions(
-                center: busPosition,
-                zoom: 15,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c'],
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: start!,
-                      width: 30,
-                      height: 30,
-                      child: const Icon(Icons.flag, color: Colors.green),
-                    ),
-                    Marker(
-                      point: end!,
-                      width: 30,
-                      height: 30,
-                      child: const Icon(Icons.flag, color: Colors.red),
-                    ),
-                    ...stopPoints.map(
-                      (s) => Marker(
-                        point: s,
-                        width: 20,
-                        height: 20,
-                        child: const Icon(Icons.location_on, size: 20, color: Colors.yellow),
-                      ),
-                    ),
-                    Marker(
-                      point: busPosition!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(Icons.directions_bus, color: Colors.orange, size: 30),
-                    ),
-                  ],
-                ),
-                if (roadPath.isNotEmpty)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: roadPath,
-                        strokeWidth: 4.0,
-                        color: Colors.blueAccent,
-                      ),
-                    ],
-                  ),
-              ],
-            )
-          : const Center(child: CircularProgressIndicator()),
+      body: (!isRideActive)
+          ? const Center(child: Text("Ride has ended."))
+          : (start != null && end != null && busPosition != null)
+              ? GoogleMap(
+                  initialCameraPosition: CameraPosition(target: busPosition!, zoom: 15),
+                  markers: markers,
+                  polylines: polylines,
+                  onMapCreated: (controller) => mapController = controller,
+                  myLocationEnabled: true,
+                )
+              : const Center(child: CircularProgressIndicator()),
     );
   }
 }
