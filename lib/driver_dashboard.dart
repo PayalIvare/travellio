@@ -1,143 +1,215 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:travellio/home_page.dart' hide HomePage;
+
 import 'driver_schools_page.dart';
 import 'DriverTravellersPage.dart';
 import 'DriverLocationPage.dart';
+import 'main.dart';
 
-class DriverDashboard extends StatelessWidget {
+class DriverDashboard extends StatefulWidget {
+  final String driverEmail;
+
+  const DriverDashboard({Key? key, required this.driverEmail}) : super(key: key);
+
+  @override
+  _DriverDashboardState createState() => _DriverDashboardState();
+}
+
+class _DriverDashboardState extends State<DriverDashboard> {
+  String driverName = '';
   final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
 
-  const DriverDashboard({Key? key}) : super(key: key);
+  @override
+  void initState() {
+    super.initState();
+    fetchDriverName();
+  }
+
+  Future<void> fetchDriverName() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: widget.driverEmail)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          driverName = snapshot.docs.first['name'] ?? 'Driver';
+        });
+      }
+    } catch (e) {
+      print('Error fetching driver name: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Example dummy data — replace this with your real data source
-    final String driverEmail = 'driver@example.com';
-    final List<Map<String, dynamic>> assignedSchools = [
-      {'name': 'ABC School'},
-      {'name': 'XYZ School'},
-    ];
-    final List<Map<String, dynamic>> allTravellers = [
-      {
-        'name': 'John Doe',
-        'email': 'john@example.com',
-        'school': 'ABC School',
-        'route': 'Route 1',
-        'pickup': 'Stop A',
-        'drop': 'Stop B',
-      },
-      {
-        'name': 'Jane Smith',
-        'email': 'jane@example.com',
-        'school': 'XYZ School',
-        'route': 'Route 2',
-        'pickup': 'Stop X',
-        'drop': 'Stop Y',
-      },
-      {
-        'name': 'Mark Lee',
-        'email': 'mark@example.com',
-        'school': 'LMN School',
-        'route': 'Route 3',
-        'pickup': 'Stop M',
-        'drop': 'Stop N',
-      },
-    ];
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Driver Dashboard'),
-        backgroundColor: turquoise,
-      ),
-      backgroundColor: black,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: Colors.white,
+      body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+            // Header with menu icon
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 30),
+              decoration: BoxDecoration(
+                color: turquoise,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+              ),
+              child: Stack(
                 children: [
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.group,
-                    label: 'Travellers',
-                    color: turquoise,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DriverTravellersPage(
-                            driverEmail: driverEmail,
-                            assignedSchools: assignedSchools,
-                            allTravellers: allTravellers,
+                  // Greeting text
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Hello,',
+                        style: TextStyle(fontSize: 20, color: Colors.white),
+                      ),
+                      Text(
+                        driverName.isNotEmpty ? driverName.toLowerCase() : 'loading...',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Text(
+                        'Your Transport Solution',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+
+                  // Menu icon with Logout option
+                  Positioned(
+                    right: 0,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.menu, color: Colors.white),
+                      onSelected: (value) async {
+                        if (value == 'logout') {
+                          await FirebaseAuth.instance.signOut();
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => HomePage()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        PopupMenuItem<String>(
+                          value: 'logout',
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: const Text(
+                            'Logout',
+                            style: TextStyle(fontSize: 14),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.school,
-                    label: 'Schools',
-                    color: turquoise,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DriverSchoolsPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.alt_route,
-                    label: 'Routes',
-                    color: turquoise,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Routes tapped')),
-                      );
-                    },
-                  ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.notifications,
-                    label: 'Notifier',
-                    color: turquoise,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DriverLocationPage(),
-                        ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: turquoise,
-                  foregroundColor: black,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  textStyle: const TextStyle(fontSize: 18),
+
+            const SizedBox(height: 20),
+
+            // Grid buttons
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                  children: [
+                    buildDashboardCard(
+                      icon: Icons.school,
+                      label: 'Schools',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => DriverSchoolsPage()),
+                        );
+                      },
+                    ),
+                    buildDashboardCard(
+                      icon: Icons.group,
+                      label: 'Travellers',
+                      onTap: () async {
+                        try {
+                          // Step 1: Fetch assigned schools
+                          final assignedSnapshot = await FirebaseFirestore.instance
+                              .collection('assignedDrivers')
+                              .where('email', isEqualTo: widget.driverEmail)
+                              .get();
+
+                          List<Map<String, dynamic>> assignedSchools = [];
+
+                          if (assignedSnapshot.docs.isNotEmpty) {
+                            final data = assignedSnapshot.docs.first.data();
+                            assignedSchools = List<Map<String, dynamic>>.from(data['schools'] ?? []);
+                          }
+
+                          print("Logged in driver email: ${widget.driverEmail}");
+                          print("Fetched assigned schools: $assignedSchools");
+
+                          // Step 2: Fetch all travellers
+                          final travellerSnapshot = await FirebaseFirestore.instance
+                              .collection('traveller_school')
+                              .get();
+
+                          List<Map<String, dynamic>> allTravellers = travellerSnapshot.docs
+                              .map((doc) => doc.data())
+                              .toList();
+
+                          // Step 3: Navigate to page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DriverTravellersPage(
+                                driverEmail: widget.driverEmail,
+                                assignedSchools: assignedSchools,
+                                allTravellers: allTravellers,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          print('Error fetching data: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to load traveller data')),
+                          );
+                        }
+                      },
+                    ),
+                    buildDashboardCard(
+                      icon: Icons.notifications,
+                      label: 'Notifier',
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Notifier tapped')),
+                        );
+                      },
+                    ),
+                    buildDashboardCard(
+                      icon: Icons.location_on,
+                      label: 'Location',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => DriverLocationPage()),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -147,31 +219,29 @@ class DriverDashboard extends StatelessWidget {
     );
   }
 
-  Widget buildDashboardButton(
-    BuildContext context, {
+  Widget buildDashboardCard({
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: color,
+          color: Colors.black,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: black),
+              Icon(icon, size: 40, color: turquoise),
               const SizedBox(height: 10),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 16,
-                  color: black,
+                  color: turquoise,
                   fontWeight: FontWeight.bold,
                 ),
               ),

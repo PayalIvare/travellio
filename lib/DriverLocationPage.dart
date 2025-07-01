@@ -25,7 +25,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   Map<String, dynamic>? fullRoute;
 
   LatLng? busPosition;
-  Timer? _timer;
+  StreamSubscription<Position>? _positionStream;
   bool rideStarted = false;
 
   LatLng? start;
@@ -139,7 +139,6 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   }
 
   Future<void> startTracking() async {
-    // ✅ Request location permission
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
@@ -226,37 +225,37 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
     setState(() => rideStarted = true);
 
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      try {
-        final pos = await Geolocator.getCurrentPosition();
-        setState(() {
-          busPosition = LatLng(pos.latitude, pos.longitude);
-          markers.removeWhere((m) => m.markerId.value == 'bus');
-          markers.add(Marker(
-            markerId: const MarkerId('bus'),
-            position: busPosition!,
-            icon: busIcon ?? BitmapDescriptor.defaultMarker,
-          ));
-        });
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 1,
+      ),
+    ).listen((Position pos) async {
+      final newPosition = LatLng(pos.latitude, pos.longitude);
+      setState(() {
+        busPosition = newPosition;
+        markers.removeWhere((m) => m.markerId.value == 'bus');
+        markers.add(Marker(
+          markerId: const MarkerId('bus'),
+          position: busPosition!,
+          icon: busIcon ?? BitmapDescriptor.defaultMarker,
+        ));
+      });
 
-        final user = _auth.currentUser;
-        if (user != null) {
-          await _firestore.collection('busLocations').doc(user.uid).update({
-            'lat': pos.latitude,
-            'lng': pos.longitude,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-        }
-      } catch (e) {
-        debugPrint('Location update error: $e');
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore.collection('busLocations').doc(user.uid).update({
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
       }
     });
   }
 
   void stopTracking() async {
-    _timer?.cancel();
-    _timer = null;
+    _positionStream?.cancel();
+    _positionStream = null;
 
     final user = _auth.currentUser;
     if (user != null) {
@@ -277,7 +276,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _positionStream?.cancel();
     super.dispose();
   }
 

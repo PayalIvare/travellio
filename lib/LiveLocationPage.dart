@@ -29,7 +29,7 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   bool iconsLoaded = false;
 
   StreamSubscription<DocumentSnapshot>? _locationSubscription;
-  Map<String, dynamic>? currentDriver; // stores current assignedDrivers doc
+  Map<String, dynamic>? currentDriver;
 
   @override
   void initState() {
@@ -68,6 +68,17 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
       setState(() {
         currentDriver = data;
         schools = List<Map<String, dynamic>>.from(data['schools'] ?? []);
+
+        if (schools.isNotEmpty) {
+          selectedSchool = schools[0]['name'];
+          _fetchRoutesForSchool(selectedSchool!);
+
+          if (routes.isNotEmpty) {
+            selectedRoute = routes[0];
+            selectedRouteName = routes[0]['name'];
+            _fetchRouteAndStartTracking();
+          }
+        }
       });
     } catch (e) {
       debugPrint("Error fetching assigned drivers: $e");
@@ -136,7 +147,7 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
           .get();
 
       if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.id; // UID is document ID
+        return snapshot.docs.first.id;
       }
     } catch (e) {
       debugPrint('Error getting UID by email: $e');
@@ -209,42 +220,56 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
       ),
       body: Column(
         children: [
-          DropdownButton<String>(
-            value: selectedSchool,
-            hint: const Text('Select School'),
-            items: schools.map((s) {
-              return DropdownMenuItem<String>(
-                value: s['name'],
-                child: Text(s['name']),
-              );
-            }).toList(),
-            onChanged: (val) {
-              setState(() {
-                selectedSchool = val;
-                selectedRoute = null;
-                selectedRouteName = null;
-                _fetchRoutesForSchool(val!);
-              });
-            },
-          ),
-          if (selectedSchool != null)
-            DropdownButton<String>(
-              value: selectedRouteName,
-              hint: const Text('Select Route'),
-              items: routes.map((r) {
-                return DropdownMenuItem<String>(
-                  value: r['name'],
-                  child: Text('${r['start']['name']} → ${r['end']['name']}'),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  selectedRouteName = val;
-                  selectedRoute = routes.firstWhere((r) => r['name'] == val);
-                });
-                _fetchRouteAndStartTracking();
-              },
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Column(
+              children: [
+                DropdownButton<String>(
+                  isExpanded: true,
+                  value: selectedSchool,
+                  hint: const Text('Select School'),
+                  items: schools.map((s) {
+                    return DropdownMenuItem<String>(
+                      value: s['name'],
+                      child: Text(s['name']),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      selectedSchool = val;
+                      selectedRoute = null;
+                      selectedRouteName = null;
+                      _fetchRoutesForSchool(val!);
+                    });
+                  },
+                ),
+                if (selectedSchool != null)
+                  DropdownButton<String>(
+                    isExpanded: true,
+                    value: selectedRouteName,
+                    hint: const Text('Select Route'),
+                    items: routes.map((r) {
+                      return DropdownMenuItem<String>(
+                        value: r['name'],
+                        child: Text('${r['start']['name']} → ${r['end']['name']}'),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        selectedRouteName = val;
+                        selectedRoute = routes.firstWhere((r) => r['name'] == val);
+                      });
+                      _fetchRouteAndStartTracking();
+                    },
+                  ),
+              ],
+            ),
+          ),
           Expanded(
             child: (!iconsLoaded)
                 ? const Center(child: CircularProgressIndicator())

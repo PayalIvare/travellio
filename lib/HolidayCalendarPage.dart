@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HolidayCalendarPage extends StatefulWidget {
   const HolidayCalendarPage({Key? key}) : super(key: key);
@@ -17,9 +19,34 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
   DateTime _focusedDay = DateTime.now();
   List<DateTime> _selectedHolidays = [];
   bool _selecting = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _userId = FirebaseAuth.instance.currentUser?.uid;
 
-  /// ✅ No SharedPreferences → initialize in-memory list only
-  /// ✅ You can still pre-populate if needed (hardcoded or from server)
+  @override
+  void initState() {
+    super.initState();
+    _loadHolidays();
+  }
+
+  Future<void> _loadHolidays() async {
+    if (_userId == null) return;
+    final doc = await _firestore.collection('holiday_calendars').doc(_userId).get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      final List<dynamic> dates = data['holidays'] ?? [];
+      setState(() {
+        _selectedHolidays = dates.map((ts) => (ts as Timestamp).toDate()).toList();
+      });
+    }
+  }
+
+  Future<void> _saveHolidays() async {
+    if (_userId == null) return;
+    await _firestore.collection('holiday_calendars').doc(_userId).set({
+      'travellerId': _userId,
+      'holidays': _selectedHolidays.map((d) => Timestamp.fromDate(d)).toList(),
+    });
+  }
 
   void _toggleHolidaySelection(DateTime day) {
     setState(() {
@@ -92,16 +119,16 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   setState(() {
                     _selecting = !_selecting;
                   });
                   if (!_selecting) {
-                    // ✅ Now just show info — no save
+                    await _saveHolidays();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Selected ${_selectedHolidays.length} holidays!',
+                          'Saved ${_selectedHolidays.length} holidays!',
                         ),
                       ),
                     );
@@ -116,7 +143,7 @@ class _HolidayCalendarPageState extends State<HolidayCalendarPage> {
                   ),
                 ),
                 child: Text(
-                  _selecting ? 'Finish Selecting Holidays' : 'Add Holidays',
+                  _selecting ? 'Finish Selecting Holidays' : 'Edit Holidays',
                   style: const TextStyle(fontSize: 18),
                 ),
               ),

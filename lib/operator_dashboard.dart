@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'add_driver_page.dart';
 import 'add_school_page.dart';
 import 'add_vehicle.dart';
 import 'view_travellers_page.dart';
+import 'main.dart'; // For HomePage after logout
 
 class OperatorDashboard extends StatefulWidget {
-  const OperatorDashboard({Key? key}) : super(key: key);
+  const OperatorDashboard({super.key});
 
   @override
   State<OperatorDashboard> createState() => _OperatorDashboardState();
@@ -15,99 +18,125 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
   final Color turquoise = const Color(0xFF77DDE7);
   final Color black = Colors.black;
 
-  // ✅ Shared in-memory lists
   final List<Map<String, String>> vehicleList = [];
-  final List<Map<String, dynamic>> travellerList = [];
 
   @override
   Widget build(BuildContext context) {
-    double iconSize = 40;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Operator Dashboard'),
-        backgroundColor: turquoise,
-      ),
-      backgroundColor: black,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: Colors.white,
+      body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+            // Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 30),
+              decoration: BoxDecoration(
+                color: turquoise,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
+              ),
+              child: Stack(
                 children: [
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.person_add,
-                    label: 'Add Driver',
-                    color: turquoise,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AddDriverPage()),
-                    ),
-                  ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.group,
-                    label: 'View Travellers',
-                    color: turquoise,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ViewTravellersPage(
-                          travellers: travellerList,
+                  // Text section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SizedBox(height: 5),
+                      Text('Hello,', style: TextStyle(fontSize: 20, color: Colors.white)),
+                      Text(
+                        'Operator',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                    ),
+                      Text(
+                        'Your Control Panel',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
                   ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.school,
-                    label: 'Add School',
-                    color: turquoise,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AddSchoolPage()),
-                    ),
-                  ),
-                  buildDashboardButton(
-                    context,
-                    icon: Icons.directions_bus,
-                    label: 'Add Vehicle',
-                    color: turquoise,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddVehiclePage(
-                            initialVehicles: vehicleList,
-                          ),
+                  // Menu icon with logout
+                  Positioned(
+                    right: 0,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.menu, color: Colors.white),
+                      onSelected: (value) async {
+                        if (value == 'logout') {
+                          await FirebaseAuth.instance.signOut();
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => HomePage()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem<String>(
+                          value: 'logout',
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: Text('Logout', style: TextStyle(fontSize: 14)),
                         ),
-                      );
-                      // Refresh state in case vehicleList changed:
-                      setState(() {});
-                    },
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: turquoise,
-                  foregroundColor: black,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  textStyle: const TextStyle(fontSize: 18),
+
+            const SizedBox(height: 30),
+
+            // Grid Buttons
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  children: [
+                    buildDashboardButton(
+                      icon: Icons.person_add,
+                      label: 'Add Driver',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AddDriverPage()),
+                      ),
+                    ),
+                    buildDashboardButton(
+                      icon: Icons.group,
+                      label: 'View Travellers',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ViewTravellersPage()),
+                      ),
+                    ),
+                    buildDashboardButton(
+                      icon: Icons.school,
+                      label: 'Add School',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AddSchoolPage()),
+                      ),
+                    ),
+                    buildDashboardButton(
+                      icon: Icons.directions_bus,
+                      label: 'Add Vehicle',
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddVehiclePage(initialVehicles: vehicleList),
+                          ),
+                        );
+                        setState(() {});
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -117,31 +146,29 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
     );
   }
 
-  Widget buildDashboardButton(
-    BuildContext context, {
+  Widget buildDashboardButton({
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: color,
+          color: black,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: black),
+              Icon(icon, size: 40, color: turquoise),
               const SizedBox(height: 10),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 16,
-                  color: black,
+                  color: turquoise,
                   fontWeight: FontWeight.bold,
                 ),
               ),

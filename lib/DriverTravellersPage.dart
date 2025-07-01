@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DriverTravellersPage extends StatefulWidget {
   final String driverEmail;
@@ -26,14 +27,37 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
   }
 
   void filterTravellers() {
-    final schoolNames = widget.assignedSchools
-        .map((s) => (s['name'] ?? '').toString().toLowerCase().trim())
-        .toList();
+    List<Map<String, String>> schoolRoutePairs = [];
 
-    filteredTravellers = widget.allTravellers.where((t) {
-      final travellerSchool = (t['school'] ?? '').toString().toLowerCase().trim();
-      return schoolNames.contains(travellerSchool);
-    }).toList();
+    for (var school in widget.assignedSchools) {
+      final schoolName = (school['name'] ?? '').toString().trim().toLowerCase();
+      final routes = school['routes'] as List? ?? [];
+
+      for (var route in routes) {
+        final start = route['start']?['name']?.toString().trim();
+        final end = route['end']?['name']?.toString().trim();
+        if (start != null && end != null) {
+          final routeString = "$start → $end".toLowerCase();
+          schoolRoutePairs.add({
+            'school': schoolName,
+            'route': routeString,
+          });
+        }
+      }
+    }
+
+    setState(() {
+      filteredTravellers = widget.allTravellers.where((t) {
+        final travellerSchool = (t['school'] ?? '').toString().trim().toLowerCase();
+        final travellerRoute = (t['route'] ?? '').toString().trim().toLowerCase();
+
+        return schoolRoutePairs.any((pair) =>
+            pair['school'] == travellerSchool &&
+            (pair['route'] == travellerRoute ||
+                travellerRoute.contains(pair['route']!) ||
+                pair['route']!.contains(travellerRoute)));
+      }).toList();
+    });
   }
 
   void showTravellerDetails(Map<String, dynamic> traveller) {
@@ -46,8 +70,7 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Name: ${traveller['name'] ?? 'N/A'}'),
-              Text('Email: ${traveller['email'] ?? 'N/A'}'),
+              Text('Name: ${traveller['traveller'] ?? 'N/A'}'),
               Text('School: ${traveller['school'] ?? 'N/A'}'),
               Text('Route: ${traveller['route'] ?? 'N/A'}'),
               Text('Pickup: ${traveller['pickup'] ?? 'N/A'}'),
@@ -82,34 +105,25 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF9F6FC),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              traveller['name'] ?? 'Unnamed',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => showTravellerDetails(traveller),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            child: const Text("Details"),
-                          ),
-                        ],
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          traveller['traveller'] ?? 'Unnamed',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.black),
+                          tooltip: 'Details',
+                          onPressed: () => showTravellerDetails(traveller),
+                        ),
+                      ],
                     ),
                   ),
                 );
