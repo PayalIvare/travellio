@@ -1,37 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ViewTravellersPage extends StatefulWidget {
-  final List<Map<String, dynamic>> travellers;
-
-  const ViewTravellersPage({Key? key, required this.travellers}) : super(key: key);
+  const ViewTravellersPage({Key? key}) : super(key: key);
 
   @override
   _ViewTravellersPageState createState() => _ViewTravellersPageState();
 }
 
 class _ViewTravellersPageState extends State<ViewTravellersPage> {
-  late final List<Map<String, dynamic>> travellers;
+  List<Map<String, dynamic>> travellers = [];
 
   @override
   void initState() {
     super.initState();
-    travellers = widget.travellers;
+    fetchTravellers();
   }
 
-  /// Show details of a traveller
+  Future<void> fetchTravellers() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('traveller_school')
+          .get();
+
+      List<Map<String, dynamic>> fetched = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        data['traveller'] = doc.id; // Store document ID as traveller name
+        fetched.add(data);
+      }
+
+      setState(() {
+        travellers = fetched;
+      });
+    } catch (e) {
+      print('Error fetching travellers: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error loading travellers')),
+      );
+    }
+  }
+
   void showTravellerDetails(Map<String, dynamic> traveller) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(traveller['name']?.toString().trim().isNotEmpty == true
-            ? traveller['name']
-            : 'No Name'),
+        title: Text(traveller['traveller'] ?? 'No Name'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Email: ${traveller['email'] ?? "N/A"}'),
-            Text('Phone: ${traveller['phone'] ?? "N/A"}'),
             Text('School: ${traveller['school'] ?? "N/A"}'),
             Text('Route: ${traveller['route'] ?? "N/A"}'),
             Text('Pickup: ${traveller['pickup'] ?? "N/A"}'),
@@ -52,8 +71,9 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View Travellers'),
         backgroundColor: const Color(0xFF77DDE7),
+        title: const Text('View Travellers'),
+        actions: [],
       ),
       body: travellers.isEmpty
           ? const Center(child: Text('No travellers found.'))
@@ -61,20 +81,29 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
               itemCount: travellers.length,
               itemBuilder: (context, index) {
                 final traveller = travellers[index];
-                final name = traveller['name']?.toString().trim().isNotEmpty == true
-                    ? traveller['name']
-                    : 'Unnamed';
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  child: ListTile(
-                    title: Text(name),
-                    trailing: ElevatedButton(
-                      onPressed: () => showTravellerDetails(traveller),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Details'),
+                final name = traveller['traveller'] ?? 'Unnamed';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9F6FC),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.black),
+                          tooltip: 'Details',
+                          onPressed: () => showTravellerDetails(traveller),
+                        )
+                      ],
                     ),
                   ),
                 );

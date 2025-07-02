@@ -15,11 +15,62 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  final Color turquoise = const Color(0xFF77DDE7);
+
+  void _showForgotPasswordDialog() {
+    final TextEditingController emailResetController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: TextField(
+          controller: emailResetController,
+          decoration: const InputDecoration(
+            labelText: 'Enter your registered email',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final email = emailResetController.text.trim();
+              if (email.isNotEmpty) {
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password reset email sent.')),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              } else {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Email field is empty.')),
+                );
+              }
+            },
+            child: const Text('Send'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    const Color turquoise = Color(0xFF77DDE7);
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -40,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                color: turquoise,
+                color: Color(0xFF77DDE7),
                 borderRadius: BorderRadius.all(Radius.circular(30)),
               ),
               child: Form(
@@ -51,97 +102,111 @@ class _LoginPageState extends State<LoginPage> {
                       controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
+                        prefixIcon: Icon(Icons.email, color: Colors.black),
                       ),
-                      validator: (value) =>
-                          value!.isEmpty ? 'Please enter email' : null,
+                      validator: (value) => value!.isEmpty ? 'Please enter email' : null,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
+                        prefixIcon: const Icon(Icons.lock, color: Colors.black),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
-                      validator: (value) =>
-                          value!.isEmpty ? 'Please enter password' : null,
+                      validator: (value) => value!.isEmpty ? 'Please enter password' : null,
                     ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          String email = _emailController.text.trim();
-                          String password = _passwordController.text.trim();
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _showForgotPasswordDialog,
+                        child: const Text(
+                          'Forgot Password?',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            final email = _emailController.text.trim();
+                            final password = _passwordController.text.trim();
 
-                          try {
-                            UserCredential userCredential =
-                                await FirebaseAuth.instance
-                                    .signInWithEmailAndPassword(
-                              email: email,
-                              password: password,
-                            );
+                            try {
+                              final UserCredential userCredential = await FirebaseAuth.instance
+                                  .signInWithEmailAndPassword(email: email, password: password);
 
-                            String uid = userCredential.user!.uid;
+                              final String uid = userCredential.user!.uid;
 
-                            DocumentSnapshot userDoc = await FirebaseFirestore
-                                .instance
-                                .collection('users')
-                                .doc(uid)
-                                .get();
+                              final DocumentSnapshot userDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(uid)
+                                  .get();
 
-                            if (userDoc.exists) {
-                              String role = userDoc['role'];
-                              Widget nextPage;
+                              if (!mounted) return;
 
-                              if (role == 'Traveller') {
-                                nextPage = TravellerDashboard();
-                              } else if (role == 'Driver') {
-                                nextPage = DriverDashboard();
-                              } else if (role == 'Operator') {
-                                nextPage = OperatorDashboard();
+                              if (userDoc.exists) {
+                                final role = userDoc['role'];
+                                final userName = userDoc['name'] ?? 'User';
+
+                                Widget nextPage;
+
+                                if (role == 'Traveller') {
+                                  nextPage = TravellerDashboard(travellerName: userName);
+                                } else if (role == 'Driver') {
+                                  nextPage = DriverDashboard(driverEmail: email);
+                                } else if (role == 'Operator') {
+                                  nextPage = const OperatorDashboard();
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Invalid user role: $role')),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => nextPage),
+                                );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content:
-                                        Text('Invalid user role: $role'),
-                                  ),
+                                  const SnackBar(content: Text('No user data found in Firestore.')),
                                 );
-                                return;
                               }
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => nextPage),
-                              );
-                            } else {
+                            } on FirebaseAuthException catch (e) {
+                              if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'No user data found in Firestore.'),
-                                ),
+                                SnackBar(content: Text('Login failed: ${e.message}')),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Something went wrong: $e')),
                               );
                             }
-                          } on FirebaseAuthException catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content:
-                                      Text('Login failed: ${e.message}')),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content:
-                                      Text('Something went wrong: $e')),
-                            );
                           }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Login'),
                       ),
-                      child: const Text('Login'),
                     ),
                   ],
                 ),

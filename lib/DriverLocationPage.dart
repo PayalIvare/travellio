@@ -25,7 +25,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   Map<String, dynamic>? fullRoute;
 
   LatLng? busPosition;
-  Timer? _timer;
+  StreamSubscription<Position>? _positionStream;
   bool rideStarted = false;
 
   LatLng? start;
@@ -139,7 +139,6 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
   }
 
   Future<void> startTracking() async {
-    // ✅ Request location permission
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
@@ -226,37 +225,37 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
     setState(() => rideStarted = true);
 
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      try {
-        final pos = await Geolocator.getCurrentPosition();
-        setState(() {
-          busPosition = LatLng(pos.latitude, pos.longitude);
-          markers.removeWhere((m) => m.markerId.value == 'bus');
-          markers.add(Marker(
-            markerId: const MarkerId('bus'),
-            position: busPosition!,
-            icon: busIcon ?? BitmapDescriptor.defaultMarker,
-          ));
-        });
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 1,
+      ),
+    ).listen((Position pos) async {
+      final newPosition = LatLng(pos.latitude, pos.longitude);
+      setState(() {
+        busPosition = newPosition;
+        markers.removeWhere((m) => m.markerId.value == 'bus');
+        markers.add(Marker(
+          markerId: const MarkerId('bus'),
+          position: busPosition!,
+          icon: busIcon ?? BitmapDescriptor.defaultMarker,
+        ));
+      });
 
-        final user = _auth.currentUser;
-        if (user != null) {
-          await _firestore.collection('busLocations').doc(user.uid).update({
-            'lat': pos.latitude,
-            'lng': pos.longitude,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-        }
-      } catch (e) {
-        debugPrint('Location update error: $e');
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore.collection('busLocations').doc(user.uid).update({
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
       }
     });
   }
 
   void stopTracking() async {
-    _timer?.cancel();
-    _timer = null;
+    _positionStream?.cancel();
+    _positionStream = null;
 
     final user = _auth.currentUser;
     if (user != null) {
@@ -277,7 +276,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _positionStream?.cancel();
     super.dispose();
   }
 
@@ -289,48 +288,72 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            DropdownButton<String>(
-              value: selectedSchool,
-              hint: const Text('Select School'),
-              items: schools.map((s) {
-                return DropdownMenuItem<String>(
-                  value: s['name'],
-                  child: Text(s['name']),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  selectedSchool = val;
-                  selectedRouteSummary = null;
-                  prepareRouteSummaries();
-                });
-              },
-            ),
-            if (selectedSchool != null)
-              DropdownButton<Map<String, dynamic>>(
-                value: selectedRouteSummary,
-                hint: const Text('Select Route'),
-                items: routeSummaries.map((summary) {
-                  return DropdownMenuItem(
-                    value: summary,
-                    child: Text('${summary['start']} → ${summary['end']}'),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => selectedRouteSummary = val),
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 212, 212, 212), // Turquoise shade
+                borderRadius: BorderRadius.circular(12),
               ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: startTracking,
-              child: const Text('Start Ride'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButton<String>(
+                    value: selectedSchool,
+                    hint: const Text('Select School'),
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: schools.map((s) {
+                      return DropdownMenuItem<String>(
+                        value: s['name'],
+                        child: Text(s['name']),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        selectedSchool = val;
+                        selectedRouteSummary = null;
+                        prepareRouteSummaries();
+                      });
+                    },
+                  ),
+                  if (selectedSchool != null)
+                    DropdownButton<Map<String, dynamic>>(
+                      value: selectedRouteSummary,
+                      hint: const Text('Select Route'),
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      items: routeSummaries.map((summary) {
+                        return DropdownMenuItem(
+                          value: summary,
+                          child: Text('${summary['start']} → ${summary['end']}'),
+                        );
+                      }).toList(),
+                      onChanged: (val) => setState(() => selectedRouteSummary = val),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: startTracking,
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 40, 196, 243)),
+                          child: const Text('Start Ride'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: stopTracking,
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color.fromARGB(255, 40, 196, 243)),
+                          child: const Text('Stop Ride'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: stopTracking,
-              child: const Text('Stop Ride'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            ),
-            const SizedBox(height: 20),
             if (rideStarted && busPosition != null)
               Expanded(
                 child: GoogleMap(

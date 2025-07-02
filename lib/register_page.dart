@@ -15,15 +15,15 @@ class _RegisterPageState extends State<RegisterPage> {
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
   String _selectedUserType = 'Traveller';
+
+  final Color turquoise = const Color(0xFF77DDE7);
 
   @override
   Widget build(BuildContext context) {
-    const Color turquoise = Color(0xFF77DDE7);
-    const Color white = Colors.white;
-
     return Scaffold(
-      backgroundColor: white,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Register'),
         backgroundColor: turquoise,
@@ -41,9 +41,9 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: turquoise,
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(30),
                   topRight: Radius.circular(30),
                 ),
@@ -95,11 +95,22 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
                       validator: (value) =>
                           (value == null || value.trim().isEmpty)
                               ? 'Please enter password'
@@ -127,64 +138,17 @@ class _RegisterPageState extends State<RegisterPage> {
                       },
                     ),
                     const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (_formKey.currentState?.validate() ?? false) {
-                          final name = _nameController.text.trim();
-                          final mobile = _mobileController.text.trim();
-                          final email = _emailController.text.trim();
-                          final password = _passwordController.text.trim();
-                          final userType = _selectedUserType;
-
-                          try {
-                            // Create user in Firebase Auth
-                            UserCredential userCredential =
-                                await FirebaseAuth.instance
-                                    .createUserWithEmailAndPassword(
-                              email: email,
-                              password: password,
-                            );
-
-                            final uid = userCredential.user?.uid;
-                            if (uid == null) {
-                              throw Exception("Failed to get user ID");
-                            }
-
-                            // Save extra info in Firestore
-                            await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(uid)
-                                .set({
-                              'name': name,
-                              'email': email,
-                              'phone': mobile,
-                              'role': userType,
-                            });
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Registered Successfully')),
-                            );
-
-                            Navigator.pop(context);
-                          } on FirebaseAuthException catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Registration failed: ${e.message ?? 'Unknown error'}')),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _registerUser,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Register'),
                       ),
-                      child: const Text('Register'),
                     ),
                   ],
                 ),
@@ -194,5 +158,44 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _registerUser() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final name = _nameController.text.trim();
+      final mobile = _mobileController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final userType = _selectedUserType;
+
+      try {
+        final userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+
+        final uid = userCredential.user?.uid;
+        if (uid == null) throw Exception("Failed to get user ID");
+
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'name': name,
+          'email': email,
+          'phone': mobile,
+          'role': userType,
+        });
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registered Successfully')),
+        );
+        Navigator.pop(context);
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration failed: ${e.message ?? 'Unknown error'}')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

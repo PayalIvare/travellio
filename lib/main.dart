@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
 import 'login_page.dart';
 import 'register_page.dart';
 import 'firebase_options.dart';
+import 'LiveLocationPage.dart'; // live location screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // ✅ Always initialize Firebase — no if condition
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -47,9 +45,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),
-        '/traveller': (context) => TravellerPage(),
-        '/driver': (context) => DriverPage(),
-        '/operator': (context) => OperatorPage(),
+        '/live-location': (context) => LiveLocationPage(),
       },
     );
   }
@@ -74,24 +70,20 @@ class HomePage extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              SizedBox(height: 80),
-              Text(
-                'Travellio',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                ),
+              const SizedBox(height: 80),
+              Image.asset(
+                'assets/logo.png', // ✅ Make sure this path is correct and declared in pubspec.yaml
+                height: 200,
               ),
-              SizedBox(height: 8),
-              Text(
+              const SizedBox(height: 8),
+              const Text(
                 'Travel Anywhere, Anytime',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: Color.fromARGB(179, 5, 3, 150),
                   fontSize: 16,
                 ),
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Column(
@@ -99,17 +91,17 @@ class HomePage extends StatelessWidget {
                     SizedBox(
                       width: buttonWidth,
                       child: ElevatedButton(
-                        child: Text('Register'),
+                        child: const Text('Register'),
                         onPressed: () {
                           Navigator.pushNamed(context, '/register');
                         },
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: buttonWidth,
                       child: ElevatedButton(
-                        child: Text('Login'),
+                        child: const Text('Login'),
                         onPressed: () {
                           Navigator.pushNamed(context, '/login');
                         },
@@ -118,136 +110,11 @@ class HomePage extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class TravellerPage extends StatelessWidget {
-  final LatLng busLocation = LatLng(37.42796133580664, -122.085749655962);
-  final List<LatLng> stops = [
-    LatLng(37.4275, -122.0850),
-    LatLng(37.4280, -122.0855),
-    LatLng(37.4285, -122.0860),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Traveller Dashboard")),
-      body: Column(
-        children: [
-          // Map (3/4)
-          Expanded(
-            flex: 3,
-            child: FlutterMap(
-              options: MapOptions(
-                center: busLocation,
-                zoom: 16,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                  subdomains: ['a', 'b', 'c'],
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      width: 40,
-                      height: 40,
-                      point: busLocation,
-                      child: Icon(Icons.directions_bus, color: Colors.red, size: 30),
-                    ),
-                    ...stops.map((s) => Marker(
-                      width: 40,
-                      height: 40,
-                      point: s,
-                      child: Icon(Icons.location_on, size: 30, color: Colors.blue),
-                    )),
-                  ],
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: [stops.first, ...stops.skip(1)],
-                      color: Colors.blue,
-                      strokeWidth: 4,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Bottom line (1/4)
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: Colors.grey[200],
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.location_on, color: Colors.green),
-                      Text("Start"),
-                    ],
-                  ),
-                  Expanded(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(height: 4, color: Colors.blue),
-                        Positioned(
-                          left: MediaQuery.of(context).size.width / 4,
-                          child: Icon(Icons.directions_bus, color: Colors.red),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.flag, color: Colors.red),
-                      Text("End"),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class DriverPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Driver Dashboard")),
-      body: Center(
-        child: Text(
-          "Driver location tracking & controls will appear here.",
-          style: TextStyle(fontSize: 16),
-        ),
-      ),
-    );
-  }
-}
-
-class OperatorPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Operator Dashboard")),
-      body: Center(child: Text("Welcome Operator")),
     );
   }
 }

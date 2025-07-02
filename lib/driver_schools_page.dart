@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class DriverSchoolsPage extends StatefulWidget {
-  const DriverSchoolsPage({Key? key}) : super(key: key); // ✅ add const & key
+  const DriverSchoolsPage({Key? key}) : super(key: key);
 
   @override
   _DriverSchoolsPageState createState() => _DriverSchoolsPageState();
@@ -70,25 +70,50 @@ class _DriverSchoolsPageState extends State<DriverSchoolsPage> {
                 return Card(
                   margin: const EdgeInsets.all(12),
                   elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          schoolName,
+                          "🏫 $schoolName",
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        if (routes.isNotEmpty)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: routes.map<Widget>((route) {
-                              final label = route?.toString() ?? 'Unnamed Route';
-                              return Text("- $label");
-                            }).toList(),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...routes.map<Widget>((route) {
+                          final start = route['start']?['name'] ?? 'Unknown';
+                          final end = route['end']?['name'] ?? 'Unknown';
+                          final stops = route['stops'] ?? [];
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "🚍 Route:",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              Text("• Start: $start"),
+                              Text("• End: $end"),
+                              const SizedBox(height: 4),
+                              const Text("• Stops:"),
+                              ...stops.map<Widget>((stop) {
+                                final stopName = stop['name'] ?? 'Unnamed Stop';
+                                return Padding(
+                                  padding: const EdgeInsets.only(left: 12.0, top: 2),
+                                  child: Text("  - $stopName"),
+                                );
+                              }).toList(),
+                              const Divider(height: 24, color: Colors.grey),
+                            ],
+                          );
+                        }).toList(),
                       ],
                     ),
                   ),
