@@ -10,6 +10,7 @@ class AddSchoolPage extends StatefulWidget {
   _AddSchoolPageState createState() => _AddSchoolPageState();
 }
 
+
 class _AddSchoolPageState extends State<AddSchoolPage> {
   final TextEditingController schoolNameController = TextEditingController();
   final TextEditingController schoolAddressController = TextEditingController();

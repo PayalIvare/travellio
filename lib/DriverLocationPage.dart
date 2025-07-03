@@ -372,4 +372,5 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       ),
     );
   }
+  
 }
