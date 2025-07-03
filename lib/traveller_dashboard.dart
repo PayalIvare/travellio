@@ -37,44 +37,53 @@ class _TravellerDashboardState extends State<TravellerDashboard> {
     });
   }
 
-  Future<void> fetchNotifications() async {
-    final userDoc = FirebaseAuth.instance.currentUser;
-    if (userDoc == null) return;
+Future<void> fetchNotifications() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    final notifRef = FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(widget.travellerName)
-        .collection('messages');
+  final notifRef = FirebaseFirestore.instance
+      .collection('notifications')
+      .doc(user.uid) // ✅ Use UID here
+      .collection('messages');
 
-    final snapshot = await notifRef.orderBy('timestamp', descending: true).get();
-    final fetched = snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      return data;
-    }).toList();
+  final snapshot = await notifRef.orderBy('timestamp', descending: true).get();
+  final fetched = snapshot.docs.map((doc) {
+    final data = doc.data();
+    data['id'] = doc.id;
+    return data;
+  }).toList();
 
-    setState(() {
-      notifications = fetched;
-      hasNewNotifications = fetched.isNotEmpty;
-    });
-  }
+  setState(() {
+    notifications = fetched;
+    hasNewNotifications = fetched.isNotEmpty;
+  });
+}
+
 
   Future<void> dismissNotifications() async {
-    final notifRef = FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(widget.travellerName)
-        .collection('messages');
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    final snapshot = await notifRef.get();
-    for (var doc in snapshot.docs) {
-      await doc.reference.delete();
-    }
+  final notifRef = FirebaseFirestore.instance
+      .collection('notifications')
+      .doc(user.uid) // ✅ Use UID here
+      .collection('messages');
 
-    setState(() {
-      notifications.clear();
-      hasNewNotifications = false;
-    });
+  final snapshot = await notifRef.get();
+  for (var doc in snapshot.docs) {
+    await doc.reference.delete();
   }
+
+  setState(() {
+    notifications.clear();
+    hasNewNotifications = false;
+  });
+}
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {

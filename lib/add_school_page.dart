@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart'; // <-- Required for UID
 import 'dart:convert';
 
 class AddSchoolPage extends StatefulWidget {
@@ -9,7 +10,6 @@ class AddSchoolPage extends StatefulWidget {
   @override
   _AddSchoolPageState createState() => _AddSchoolPageState();
 }
-
 
 class _AddSchoolPageState extends State<AddSchoolPage> {
   final TextEditingController schoolNameController = TextEditingController();
@@ -92,6 +92,7 @@ class _AddSchoolPageState extends State<AddSchoolPage> {
         });
       }
 
+      // 1. Add to schools collection
       await _firestore.collection('schools').add({
         'name': name,
         'address': address,
@@ -99,6 +100,29 @@ class _AddSchoolPageState extends State<AddSchoolPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // 2. Add to traveller_school using UID as doc ID
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final uid = user.uid;
+        final displayName = user.displayName ?? 'Unknown';
+
+        await _firestore.collection('traveller_school').doc(uid).set({
+          'traveller': displayName,
+          'school': name,
+          'pickup': routes.isNotEmpty
+              ? routes[0].startController.text.trim()
+              : 'Not specified',
+          'drop': routes.isNotEmpty
+              ? routes[0].endController.text.trim()
+              : 'Not specified',
+          'route': routes.isNotEmpty
+              ? "${routes[0].startController.text.trim()} → ${routes[0].endController.text.trim()}"
+              : 'Not specified',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Clear form
       schoolNameController.clear();
       schoolAddressController.clear();
       setState(() {

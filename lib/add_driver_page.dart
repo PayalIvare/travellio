@@ -26,17 +26,26 @@ class _AddDriverPageState extends State<AddDriverPage> {
   Future<void> fetchData() async {
     try {
       final firestore = FirebaseFirestore.instance;
+
       final driversSnapshot = await firestore
           .collection('users')
           .where('role', isEqualTo: 'Driver')
           .get();
-      registeredDrivers =
-          driversSnapshot.docs.map((doc) => doc.data()).toList();
+
+      // ✅ Store UID from users collection
+      registeredDrivers = driversSnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id;
+        return data;
+      }).toList();
+
       final schoolsSnapshot = await firestore.collection('schools').get();
       schools = schoolsSnapshot.docs.map((doc) => doc.data()).toList();
+
       final assignedSnapshot =
           await firestore.collection('assignedDrivers').get();
       assignedDrivers = assignedSnapshot.docs.map((doc) => doc.data()).toList();
+
       setState(() {});
     } catch (e) {
       print('Error fetching data: $e');
@@ -55,7 +64,13 @@ class _AddDriverPageState extends State<AddDriverPage> {
           };
         }).toList(),
       };
-      await FirebaseFirestore.instance.collection('assignedDrivers').add(entry);
+
+      // ✅ Use UID as document ID in assignedDrivers
+      await FirebaseFirestore.instance
+          .collection('assignedDrivers')
+          .doc(selectedDriver?['uid'])
+          .set(entry);
+
       assignedDrivers.add(entry);
       setState(() {
         selectedDriver = null;
@@ -128,7 +143,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   r['start']?['name']?.toString() ?? '';
                               final end = r['end']?['name']?.toString() ?? '';
                               final stops = (r['stops'] as List?)
-                                      ?.map((s) => s['name']?.toString() ?? '')
+                                      ?.map((s) =>
+                                          s['name']?.toString() ?? '')
                                       .join(', ') ??
                                   '';
                               return Text(
@@ -187,20 +203,20 @@ class _AddDriverPageState extends State<AddDriverPage> {
                             onTap: () => showDriverDetails(driver),
                           ),
                           DataCell(
-                           ElevatedButton(
-                          onPressed: () => showAssignmentForm(driver),
-                          child: const Text("Add", style: TextStyle(fontSize: 14)),
-                          style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                          minimumSize: Size(0, 32), // height fixed, width wraps content
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                     shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                      ),
-                         ),
-                      ),
-
+                            ElevatedButton(
+                              onPressed: () => showAssignmentForm(driver),
+                              child: const Text("Add", style: TextStyle(fontSize: 14)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 0),
+                                minimumSize: Size(0, 32),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       );
@@ -320,6 +336,5 @@ class _AddDriverPageState extends State<AddDriverPage> {
         ),
       ),
     );
- 
   }
 }

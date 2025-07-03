@@ -64,16 +64,18 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
     if (user == null) return;
 
     try {
-      final snapshot = await _firestore
-          .collection('assignedDrivers')
-          .where('email', isEqualTo: user.email)
-          .get();
+      final docRef = _firestore.collection('assignedDrivers').doc(user.uid);
+      final snapshot = await docRef.get();
 
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first.data();
-        setState(() {
-          schools = List<Map<String, dynamic>>.from(doc['schools'] ?? []);
-        });
+      if (snapshot.exists) {
+        final doc = snapshot.data();
+        if (doc != null && doc.containsKey('schools')) {
+          setState(() {
+            schools = List<Map<String, dynamic>>.from(doc['schools']);
+          });
+        }
+      } else {
+        debugPrint('No assignedDriver document found for UID: ${user.uid}');
       }
     } catch (e) {
       debugPrint('Error fetching assigned schools: $e');
@@ -292,7 +294,7 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 212, 212, 212), // Turquoise shade
+                color: const Color.fromARGB(255, 212, 212, 212),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -372,5 +374,4 @@ class _DriverLocationPageState extends State<DriverLocationPage> {
       ),
     );
   }
-  
 }

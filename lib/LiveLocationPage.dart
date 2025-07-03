@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -14,6 +15,7 @@ class LiveLocationPage extends StatefulWidget {
 
 class _LiveLocationPageState extends State<LiveLocationPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   List<Map<String, dynamic>> schools = [];
   String? selectedSchool;
@@ -57,42 +59,67 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
     }
   }
 
-  Future<void> _fetchAssignedDrivers() async {
+  Future<Map<String, dynamic>?> _getTravellerSchoolRoute() async {
     try {
-      final snapshot = await _firestore.collection('assignedDrivers').get();
-      if (snapshot.docs.isEmpty) return;
+      final user = _auth.currentUser;
+      if (user == null) return null;
 
-      final doc = snapshot.docs.first;
-      final data = doc.data();
+      final doc = await _firestore.collection('traveller_school').doc(user.uid).get();
+      if (!doc.exists) return null;
 
-      setState(() {
-        currentDriver = data;
-        schools = List<Map<String, dynamic>>.from(data['schools'] ?? []);
-
-        if (schools.isNotEmpty) {
-          selectedSchool = schools[0]['name'];
-          _fetchRoutesForSchool(selectedSchool!);
-
-          if (routes.isNotEmpty) {
-            selectedRoute = routes[0];
-            selectedRouteName = routes[0]['name'];
-            _fetchRouteAndStartTracking();
-          }
-        }
-      });
+      return doc.data();
     } catch (e) {
-      debugPrint("Error fetching assigned drivers: $e");
+      debugPrint('Error fetching traveller_school info: $e');
+      return null;
     }
   }
 
-  void _fetchRoutesForSchool(String schoolName) {
-    final foundSchool = schools.firstWhere(
-      (s) => s['name'] == schoolName,
-      orElse: () => {},
-    );
-    setState(() {
-      routes = List<Map<String, dynamic>>.from(foundSchool['routes'] ?? []);
-    });
+  Future<void> _fetchAssignedDrivers() async {
+    try {
+      final travellerData = await _getTravellerSchoolRoute();
+      if (travellerData == null) {
+        debugPrint('No traveller_school data found.');
+        return;
+      }
+
+      final userSchool = travellerData['school'];
+      final userRouteName = travellerData['route'];
+
+      final snapshot = await _firestore.collection('assignedDrivers').get();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final List schoolsList = data['schools'] ?? [];
+
+        for (var school in schoolsList) {
+          if (school['name'] == userSchool) {
+            final routesList = school['routes'] ?? [];
+
+            for (var route in routesList) {
+              final startName = route['start']?['name'] ?? '';
+              final endName = route['end']?['name'] ?? '';
+              final routeName = "$startName → $endName";
+
+              if (routeName == userRouteName) {
+                setState(() {
+                  selectedSchool = userSchool;
+                  selectedRouteName = userRouteName;
+                  selectedRoute = route;
+                  schools = [Map<String, dynamic>.from(school)];
+                  routes = [Map<String, dynamic>.from(route)];
+                  currentDriver = data;
+                });
+                _fetchRouteAndStartTracking();
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      debugPrint('No matching driver found for school: $userSchool and route: $userRouteName');
+    } catch (e) {
+      debugPrint("Error in _fetchAssignedDrivers: $e");
+    }
   }
 
   Future<void> _fetchRouteAndStartTracking() async {
@@ -123,8 +150,7 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
     }
 
     if (start != null && end != null) {
-      final allPoints = [start!, ...stopPoints, end!];
-      await _fetchORSPath(allPoints);
+      await _fetchORSPath([start!, end!]);
     }
 
     final driverEmail = currentDriver?['driver']?['email'];
@@ -176,8 +202,14 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
   }
 
   Future<void> _fetchORSPath(List<LatLng> points) async {
+    if (points.length < 2) return;
+
     try {
-      final coordinates = points.map((p) => [p.longitude, p.latitude]).toList();
+      final coordinates = [
+        [points.first.longitude, points.first.latitude],
+        [points.last.longitude, points.last.latitude],
+      ];
+
       final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car/geojson');
 
       final response = await http.post(
@@ -195,6 +227,7 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
         setState(() {
           roadPath = coords.map<LatLng>((c) => LatLng(c[1], c[0])).toList();
         });
+        debugPrint("Fetched ${roadPath.length} polyline points.");
       } else {
         debugPrint("ORS failed: ${response.statusCode}");
       }
@@ -220,56 +253,6 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: [
-                DropdownButton<String>(
-                  isExpanded: true,
-                  value: selectedSchool,
-                  hint: const Text('Select School'),
-                  items: schools.map((s) {
-                    return DropdownMenuItem<String>(
-                      value: s['name'],
-                      child: Text(s['name']),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      selectedSchool = val;
-                      selectedRoute = null;
-                      selectedRouteName = null;
-                      _fetchRoutesForSchool(val!);
-                    });
-                  },
-                ),
-                if (selectedSchool != null)
-                  DropdownButton<String>(
-                    isExpanded: true,
-                    value: selectedRouteName,
-                    hint: const Text('Select Route'),
-                    items: routes.map((r) {
-                      return DropdownMenuItem<String>(
-                        value: r['name'],
-                        child: Text('${r['start']['name']} → ${r['end']['name']}'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        selectedRouteName = val;
-                        selectedRoute = routes.firstWhere((r) => r['name'] == val);
-                      });
-                      _fetchRouteAndStartTracking();
-                    },
-                  ),
-              ],
-            ),
-          ),
           Expanded(
             child: (!iconsLoaded)
                 ? const Center(child: CircularProgressIndicator())
@@ -319,11 +302,10 @@ class _LiveLocationPageState extends State<LiveLocationPage> {
                         myLocationButtonEnabled: true,
                         onMapCreated: (controller) => mapController = controller,
                       )
-                    : const Center(child: Text("Please select school and route")),
+                    : const Center(child: Text("Please wait, loading route...")),
           )
         ],
       ),
     );
   }
-  
 }

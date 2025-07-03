@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SelectSchool extends StatefulWidget {
   final List<dynamic> initialSchoolData;
@@ -14,7 +15,6 @@ class SelectSchool extends StatefulWidget {
   @override
   State<SelectSchool> createState() => _SelectSchoolState();
 }
-
 
 class _SelectSchoolState extends State<SelectSchool> {
   List<String> schools = [];
@@ -94,9 +94,12 @@ class _SelectSchoolState extends State<SelectSchool> {
 
   Future<void> saveToFirestore() async {
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw Exception("User not logged in");
+
       await FirebaseFirestore.instance
           .collection('traveller_school')
-          .doc(widget.travellerName)
+          .doc(uid)
           .set({
         'traveller': widget.travellerName,
         'school': selectedSchool,
@@ -105,6 +108,7 @@ class _SelectSchoolState extends State<SelectSchool> {
         'drop': selectedDrop,
         'timestamp': FieldValue.serverTimestamp(),
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Saved to Firestore successfully!')),
       );
@@ -151,8 +155,7 @@ class _SelectSchoolState extends State<SelectSchool> {
                 child: Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      decoration:
-                          const InputDecoration(labelText: 'Select School'),
+                      decoration: const InputDecoration(labelText: 'Select School'),
                       value: selectedSchool,
                       items: schools
                           .map((school) => DropdownMenuItem<String>(
@@ -167,8 +170,7 @@ class _SelectSchoolState extends State<SelectSchool> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      decoration:
-                          const InputDecoration(labelText: 'Select Route'),
+                      decoration: const InputDecoration(labelText: 'Select Route'),
                       value: selectedRoute,
                       items: routes
                           .map((route) => DropdownMenuItem<String>(
@@ -183,8 +185,7 @@ class _SelectSchoolState extends State<SelectSchool> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                          labelText: 'Select Pickup Point'),
+                      decoration: const InputDecoration(labelText: 'Select Pickup Point'),
                       value: selectedPickup,
                       items: stops
                           .map((stop) => DropdownMenuItem<String>(
@@ -200,8 +201,7 @@ class _SelectSchoolState extends State<SelectSchool> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      decoration:
-                          const InputDecoration(labelText: 'Select Drop Point'),
+                      decoration: const InputDecoration(labelText: 'Select Drop Point'),
                       value: selectedDrop,
                       items: stops
                           .map((stop) => DropdownMenuItem<String>(
