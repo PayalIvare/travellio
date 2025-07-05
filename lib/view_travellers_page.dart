@@ -27,7 +27,7 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        data['traveller'] = doc.id; // Store document ID as traveller name
+        data['uid'] = doc.id; // Save UID for reference
         fetched.add(data);
       }
 
@@ -73,7 +73,6 @@ class _ViewTravellersPageState extends State<ViewTravellersPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF77DDE7),
         title: const Text('View Travellers'),
-        actions: [],
       ),
       body: travellers.isEmpty
           ? const Center(child: Text('No travellers found.'))

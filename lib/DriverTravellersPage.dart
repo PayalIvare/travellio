@@ -26,6 +26,10 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
     filterTravellers();
   }
 
+  String normalizeRoute(String route) {
+    return route.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+  }
+
   void filterTravellers() {
     List<Map<String, String>> schoolRoutePairs = [];
 
@@ -37,7 +41,7 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
         final start = route['start']?['name']?.toString().trim();
         final end = route['end']?['name']?.toString().trim();
         if (start != null && end != null) {
-          final routeString = "$start → $end".toLowerCase();
+          final routeString = "$start → $end";
           schoolRoutePairs.add({
             'school': schoolName,
             'route': routeString,
@@ -47,19 +51,27 @@ class _DriverTravellersPageState extends State<DriverTravellersPage> {
     }
 
     setState(() {
-      filteredTravellers = widget.allTravellers.where((t) {
-        final travellerSchool = (t['school'] ?? '').toString().trim().toLowerCase();
-        final travellerRoute = (t['route'] ?? '').toString().trim().toLowerCase();
+      filteredTravellers = widget.allTravellers
+          .where((t) {
+            final travellerSchool = (t['school'] ?? '').toString().trim().toLowerCase();
+            final travellerRoute = (t['route'] ?? '').toString().trim().toLowerCase();
 
-        return schoolRoutePairs.any((pair) =>
-            pair['school'] == travellerSchool &&
-            (pair['route'] == travellerRoute ||
-                travellerRoute.contains(pair['route']!) ||
-                pair['route']!.contains(travellerRoute)));
-      }).toList();
+            return schoolRoutePairs.any((pair) =>
+                pair['school'] == travellerSchool &&
+                normalizeRoute(pair['route']!) == normalizeRoute(travellerRoute));
+          })
+          .map((t) {
+            final uid = t['uid'] ?? '';
+            return {
+              ...t,
+              'id': uid,
+            };
+          })
+          .toList();
     });
-  }
 
+    print("Filtered travellers count: ${filteredTravellers.length}");
+  }
 
   void showTravellerDetails(Map<String, dynamic> traveller) {
     showDialog(

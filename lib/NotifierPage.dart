@@ -28,6 +28,10 @@ class _NotifierPageState extends State<NotifierPage> {
     filterTravellers();
   }
 
+  String normalizeRoute(String input) {
+    return input.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+  }
+
   void filterTravellers() {
     List<Map<String, String>> schoolRoutePairs = [];
 
@@ -36,10 +40,11 @@ class _NotifierPageState extends State<NotifierPage> {
       final routes = school['routes'] as List? ?? [];
 
       for (var route in routes) {
-        final start = route['start']?['name']?.toString().trim();
-        final end = route['end']?['name']?.toString().trim();
+        final start = route['start']?['name']?.toString().trim().toLowerCase();
+        final end = route['end']?['name']?.toString().trim().toLowerCase();
+
         if (start != null && end != null) {
-          final routeString = "$start → $end".toLowerCase();
+          final routeString = "$start → $end";
           schoolRoutePairs.add({
             'school': schoolName,
             'route': routeString,
@@ -55,11 +60,17 @@ class _NotifierPageState extends State<NotifierPage> {
 
         return schoolRoutePairs.any((pair) =>
             pair['school'] == travellerSchool &&
-            (pair['route'] == travellerRoute ||
-                travellerRoute.contains(pair['route']!) ||
-                pair['route']!.contains(travellerRoute)));
+            normalizeRoute(pair['route']!) == normalizeRoute(travellerRoute));
+      }).map((t) {
+        final uid = t['uid'] ?? '';
+        return {
+          ...t,
+          'id': uid,
+        };
       }).toList();
     });
+
+    print("Filtered travellers count: ${filteredTravellers.length}");
   }
 
   void toggleSelectAll(bool? value) {
@@ -73,7 +84,7 @@ class _NotifierPageState extends State<NotifierPage> {
 
   void toggleTraveller(String id, bool? value) {
     setState(() {
-      if (value == true) {
+      if (value == true && !selectedTravellerIds.contains(id)) {
         selectedTravellerIds.add(id);
       } else {
         selectedTravellerIds.remove(id);
@@ -127,45 +138,64 @@ class _NotifierPageState extends State<NotifierPage> {
           : Column(
               children: [
                 CheckboxListTile(
-                  title: const Text("Select All"),
+                  title: const Text("Travellers"),
                   value: selectAll,
                   onChanged: toggleSelectAll,
                 ),
                 const Divider(),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: filteredTravellers.length,
-                    itemBuilder: (context, index) {
-                      final traveller = filteredTravellers[index];
-                      final name = traveller['traveller'] ?? 'Unnamed';
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: filteredTravellers.length,
+                            itemBuilder: (context, index) {
+                              final traveller = filteredTravellers[index];
+                              final name = traveller['traveller'] ?? 'Unnamed';
 
-                      return CheckboxListTile(
-                        title: Text(name),
-                        value: selectedTravellerIds.contains(traveller['id']),
-                        onChanged: (val) =>
-                            toggleTraveller(traveller['id'], val),
-                      );
-                    },
+                              return CheckboxListTile(
+                                title: Text(name),
+                                value: selectedTravellerIds.contains(traveller['id']),
+                                onChanged: (val) =>
+                                    toggleTraveller(traveller['id'], val),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton(
+                              onPressed: selectedTravellerIds.isEmpty
+                                  ? null
+                                  : () => sendNotification("Pickup"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF77DDE7),
+                              ),
+                              child: const Text("Pickup"),
+                            ),
+                            ElevatedButton(
+                              onPressed: selectedTravellerIds.isEmpty
+                                  ? null
+                                  : () => sendNotification("Drop"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF77DDE7),
+                              ),
+                              child: const Text("Drop"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton(
-                      onPressed: selectedTravellerIds.isEmpty
-                          ? null
-                          : () => sendNotification("Pickup"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text("Pickup"),
-                    ),
-                    ElevatedButton(
-                      onPressed: selectedTravellerIds.isEmpty
-                          ? null
-                          : () => sendNotification("Drop"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text("Drop"),
-                    ),
-                  ],
                 ),
               ],
             ),

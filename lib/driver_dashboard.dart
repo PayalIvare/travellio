@@ -1,3 +1,4 @@
+// ... your imports remain unchanged
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -153,7 +154,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
                           List<Map<String, dynamic>> allTravellers = travellerSnapshot.docs.map((doc) {
                             var t = doc.data();
-                            t['id'] = doc.id;
+                            t['uid'] = doc.id; // 🔁 Updated here
                             return t;
                           }).toList();
 
@@ -198,7 +199,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
 
                           List<Map<String, dynamic>> allTravellers = travellerSnapshot.docs.map((doc) {
                             var t = doc.data();
-                            t['id'] = doc.id;
+                            t['uid'] = doc.id; // 🔁 Updated here
                             return t;
                           }).toList();
 
@@ -271,6 +272,5 @@ class _DriverDashboardState extends State<DriverDashboard> {
         ),
       ),
     );
- 
   }
 }
